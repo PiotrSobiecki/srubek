@@ -1,3 +1,15 @@
+# 1.0.0 (2026-10-30)
+
+
+### Bug Fixes
+
+* devEngines.runtime jako zakres ^24, nie dokładna wersja ([369d3bf](https://github.com/PiotrSobiecki/srubek/commit/369d3bf1764c9e3f0406e3a1bc17feba3b1efdaa))
+
+
+### Features
+
+* szkielet gry Śrubek pod domeną srubek.sobiecki.org ([f599f2a](https://github.com/PiotrSobiecki/srubek/commit/f599f2aeb2b4929f2356a555703724d3b7335902))
+
 # [1.7.0](https://github.com/auditmos/astro-on-cf/compare/v1.6.0...v1.7.0) (2026-08-08)
 
 

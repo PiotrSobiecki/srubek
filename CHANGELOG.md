@@ -1,3 +1,10 @@
+# [1.19.0](https://github.com/PiotrSobiecki/srubek/compare/v1.18.0...v1.19.0) (2026-10-30)
+
+
+### Features
+
+* licznik klatek pod ?fps=1 ([1b65537](https://github.com/PiotrSobiecki/srubek/commit/1b6553798098f7dc0d7f9f3d233f81aa9db32a0d))
+
 # [1.18.0](https://github.com/PiotrSobiecki/srubek/compare/v1.17.0...v1.18.0) (2026-10-30)
 
 

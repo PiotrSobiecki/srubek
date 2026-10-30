@@ -1,3 +1,10 @@
+# [1.18.0](https://github.com/PiotrSobiecki/srubek/compare/v1.17.0...v1.18.0) (2026-10-30)
+
+
+### Features
+
+* bossowie partia 3: magnes dźwigowy, rój dronów, taśmociąg-wąż ([436f3a8](https://github.com/PiotrSobiecki/srubek/commit/436f3a834a69c47525796cb4d791b088ca648b0b))
+
 # [1.17.0](https://github.com/PiotrSobiecki/srubek/compare/v1.16.0...v1.17.0) (2026-10-30)
 
 

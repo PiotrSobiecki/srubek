@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/PiotrSobiecki/srubek/compare/v1.7.0...v1.8.0) (2026-10-30)
+
+
+### Features
+
+* kółka, kurz, impuls magnesu i dźwięki syntezowane ([ce016e3](https://github.com/PiotrSobiecki/srubek/commit/ce016e34feba68d5ebc637850b63915a2c05b0fa))
+
 # [1.7.0](https://github.com/PiotrSobiecki/srubek/compare/v1.6.0...v1.7.0) (2026-10-30)
 
 

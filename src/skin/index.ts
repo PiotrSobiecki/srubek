@@ -56,6 +56,18 @@ export const HANDS: readonly HandItem[] = [
 	"parasol",
 ];
 
+/** How far a swing reaches with each item, in pixels; a bare claw only jabs. */
+export const HAND_REACH: Record<HandItem, number> = {
+	none: 10,
+	klucz: 16,
+	mlotek: 16,
+	miecz: 24,
+	flaga: 20,
+	lizak: 14,
+	balonik: 12,
+	parasol: 20,
+};
+
 export const DEFAULT_SKIN: Skin = {
 	body: "#aab5bf",
 	eyes: "#2fd3c6",

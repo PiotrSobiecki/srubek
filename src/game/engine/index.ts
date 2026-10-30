@@ -4,7 +4,7 @@
  */
 
 import type { Boss } from "@/game/boss";
-import { damageBoss, scrapHitsBoss, stepBoss } from "@/game/boss";
+import { coreOpen, damageBoss, scrapHitsBoss, stepBoss } from "@/game/boss";
 import { isSolid, type Level, type PickupKind, ROWS, TILE, type Vec } from "@/game/level";
 
 export const VIEW_W = 480;
@@ -50,6 +50,8 @@ export interface Input {
 	magnet: boolean;
 	throw: boolean;
 	mega: boolean;
+	/** Swing whatever is in the hand. */
+	attack: boolean;
 }
 
 export interface Player {
@@ -74,6 +76,11 @@ export interface Player {
 	magnetHeld: boolean;
 	throwHeld: boolean;
 	megaHeld: boolean;
+	attackHeld: boolean;
+	/** Frames left of the current swing; 0 when idle. */
+	swingLeft: number;
+	/** The current swing already struck the boss. */
+	swingHit: boolean;
 }
 
 interface PickupItem extends Vec {
@@ -175,6 +182,8 @@ export interface World {
 	megas: Mega[];
 	/** Mirror of the state's stock, set by the caller before each step. */
 	megaBalls: number;
+	/** How far the hand item reaches, set by the caller from the skin. */
+	meleeReach: number;
 	effects: Effect[];
 	camera: number;
 	frame: number;
@@ -196,7 +205,8 @@ export type GameEvent =
 	| { type: "bossHit" }
 	| { type: "bossDown"; boss: string }
 	| { type: "megaFired" }
-	| { type: "spring" };
+	| { type: "spring" }
+	| { type: "swing" };
 
 /** Pieces Śrubek carries over from the previous world, already in the pouch. */
 export function carriedScrap(world: World | undefined): number {
@@ -235,6 +245,9 @@ export function createWorld(level: Level, boss?: Boss, carried = 0): World {
 			magnetHeld: false,
 			throwHeld: false,
 			megaHeld: false,
+			attackHeld: false,
+			swingLeft: 0,
+			swingHit: false,
 		},
 		pickups: level.pickups.map((n) => ({ ...n, taken: false })),
 		drones: level.drones.map((d) => ({
@@ -312,6 +325,7 @@ export function createWorld(level: Level, boss?: Boss, carried = 0): World {
 		shots: [],
 		megas: [],
 		megaBalls: 0,
+		meleeReach: 12,
 		effects: [],
 		camera: 0,
 		frame: 0,
@@ -437,6 +451,7 @@ const SCRAP = 12;
 /** How many pieces the magnet can carry at once. */
 export const SCRAP_CAPACITY = 10;
 export const MEGA_SIZE = 20;
+export const SWING_FRAMES = 16;
 const MEGA_SPEED = 5;
 
 function moveDogs(world: World): void {
@@ -558,6 +573,55 @@ function touchDogs(world: World, events: GameEvent[]): void {
 	for (const d of world.dogs) {
 		if (d.alive && overlaps(p, d.x, d.y, d.w, d.h)) hurt(p, d.x + d.w / 2, events);
 	}
+}
+
+/** The box in front of Śrubek that a swing sweeps through. */
+function swingBox(world: World): { x: number; y: number; w: number; h: number } {
+	const p = world.player;
+	const reach = world.meleeReach;
+	return { x: p.facing > 0 ? p.x + p.w : p.x - reach, y: p.y - 8, w: reach, h: p.h + 8 };
+}
+
+/** Every drone and dog inside the box is destroyed. */
+function strikeEnemies(
+	world: World,
+	box: { x: number; y: number; w: number; h: number },
+	events: GameEvent[],
+): void {
+	for (const [list, type] of [
+		[world.drones, "drone"],
+		[world.dogs, "dog"],
+	] as const) {
+		for (const d of list) {
+			if (!d.alive || !overlaps(box, d.x, d.y, d.w, d.h)) continue;
+			d.alive = false;
+			world.effects.push({ kind: "burst", x: d.x + d.w / 2, y: d.y + d.h / 2, frame: world.frame });
+			events.push({ type });
+		}
+	}
+}
+
+/** A swing hurts during its middle frames: wind-up and follow-through are harmless. */
+function swing(world: World, input: Input, events: GameEvent[]): void {
+	const p = world.player;
+	const pressed = input.attack && !p.attackHeld;
+	p.attackHeld = input.attack;
+	if (pressed && p.swingLeft === 0) {
+		p.swingLeft = SWING_FRAMES;
+		p.swingHit = false;
+		events.push({ type: "swing" });
+	}
+	if (p.swingLeft === 0) return;
+	p.swingLeft -= 1;
+	if (p.swingLeft > 12 || p.swingLeft < 4) return;
+	const box = swingBox(world);
+	strikeEnemies(world, box, events);
+	const boss = world.boss;
+	if (!boss?.alive || p.swingHit || !overlaps(box, boss.x, boss.y, boss.w, boss.h)) return;
+	p.swingHit = true;
+	// A closed weak spot only clangs; a bared one takes the hit like a stomp.
+	if (coreOpen(boss)) damageBoss(boss, world, events);
+	else world.effects.push({ kind: "spark", x: box.x + box.w / 2, y: p.y + 4, frame: world.frame });
 }
 
 function fireMega(world: World, input: Input, events: GameEvent[]): void {
@@ -794,6 +858,7 @@ export function step(world: World, input: Input): GameEvent[] {
 	moveDogs(world);
 	magnet(world, input, events);
 	fireMega(world, input, events);
+	swing(world, input, events);
 	// Dust kicked up by the wheels at speed.
 	if (p.onGround && Math.abs(p.vx) > 1.6 && world.frame % 5 === 0) {
 		world.effects.push({

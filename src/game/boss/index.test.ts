@@ -21,6 +21,7 @@ const IDLE: Input = {
 	magnet: false,
 	throw: false,
 	mega: false,
+	attack: false,
 };
 
 function arena(body: BossBody, attack: BossAttack, weak: BossWeakSpot, level = 1): [World, Boss] {
@@ -359,5 +360,30 @@ describe("every boss can be beaten", () => {
 			}
 		}
 		expect(opened).toBe(true);
+	});
+});
+
+describe("a swing against a boss", () => {
+	it("only lands on a bared weak spot, once per swing", () => {
+		const [world, boss] = arena("pies-alfa", "szarza", "grzbiet");
+		world.meleeReach = 24;
+		const p = world.player;
+		p.y = boss.floorY + boss.h - p.h;
+		p.x = boss.x - p.w - 4;
+		p.facing = 1;
+		boss.phase = "track";
+		boss.timer = 999;
+		const closed = [];
+		closed.push(...step(world, { ...IDLE, attack: true }));
+		for (let i = 0; i < 20; i++) closed.push(...step(world, IDLE));
+		expect(closed.some((e) => e.type === "bossHit")).toBe(false);
+		boss.phase = "stun";
+		boss.timer = 200;
+		p.x = boss.x - p.w - 4;
+		p.hurtLeft = 60;
+		const open = [];
+		open.push(...step(world, { ...IDLE, attack: true }));
+		for (let i = 0; i < 20; i++) open.push(...step(world, IDLE));
+		expect(open.filter((e) => e.type === "bossHit")).toHaveLength(1);
 	});
 });

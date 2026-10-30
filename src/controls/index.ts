@@ -21,6 +21,7 @@ const BUTTONS: PadButton[] = [
 	{ key: "magnet", label: "C", area: "c" },
 	{ key: "throw", label: "X", area: "x" },
 	{ key: "mega", label: "Z", area: "z" },
+	{ key: "attack", label: "⚔", area: "a" },
 ];
 
 export function touchDevice(): boolean {

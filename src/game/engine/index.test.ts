@@ -8,6 +8,7 @@ const IDLE: Input = {
 	magnet: false,
 	throw: false,
 	mega: false,
+	attack: false,
 };
 
 // 20 tiles wide, wall on the right edge comes from the grid border.
@@ -541,5 +542,45 @@ describe("obstacles", () => {
 		expect(p.y + p.h).toBeGreaterThan(trap.y + 8);
 		for (let i = 0; i < 150; i++) step(world, IDLE);
 		expect(trap.openLeft).toBe(0);
+	});
+});
+
+describe("melee swing", () => {
+	const RANGE = levelFromRows([
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"..P.w...............",
+		"####################",
+	]);
+	const SWING: Input = { ...IDLE, attack: true };
+
+	it("destroys a dog within reach, once per press", () => {
+		const world = createWorld(RANGE);
+		world.meleeReach = 24;
+		settle(world);
+		const dog = world.dogs[0];
+		if (!dog) throw new Error("no dog");
+		dog.x = world.player.x + world.player.w + 6;
+		const events = [...step(world, SWING)];
+		for (let i = 0; i < 20; i++) events.push(...step(world, SWING));
+		expect(events.filter((e) => e.type === "swing")).toHaveLength(1);
+		expect(events).toContainEqual({ type: "dog" });
+		expect(dog.alive).toBe(false);
+	});
+
+	it("misses what is beyond the item's reach", () => {
+		const world = createWorld(RANGE);
+		world.meleeReach = 10;
+		settle(world);
+		const dog = world.dogs[0];
+		if (!dog) throw new Error("no dog");
+		dog.x = world.player.x + world.player.w + 30;
+		step(world, SWING);
+		run(world, IDLE, 20);
+		expect(dog.alive).toBe(true);
 	});
 });

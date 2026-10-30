@@ -13,7 +13,7 @@ import { carriedScrap, createWorld, type Input, step, VIEW_W, type World } from 
 import { buildArena, buildLevel, type Level } from "@/game/level";
 import { type BoardRow, createRenderer } from "@/game/render";
 import { applyEvents, createState, type GameState, nextLevel } from "@/game/state";
-import { DEFAULT_SKIN, type Skin } from "@/skin";
+import { DEFAULT_SKIN, HAND_REACH, type Skin } from "@/skin";
 
 const STEP_MS = 1000 / 60;
 
@@ -26,7 +26,9 @@ const KEYS: Record<string, keyof Input> = {
 	ArrowUp: "jump",
 	KeyW: "jump",
 	KeyZ: "mega",
-	KeyV: "mega",
+	ShiftLeft: "attack",
+	ShiftRight: "attack",
+	KeyV: "attack",
 	KeyC: "magnet",
 	KeyE: "magnet",
 	KeyX: "throw",
@@ -68,6 +70,7 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 		magnet: false,
 		throw: false,
 		mega: false,
+		attack: false,
 	};
 	// ?level=<n> and ?x=<tile> open a later level or section for a look without replaying.
 	const query = new URLSearchParams(location.search);
@@ -156,6 +159,7 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 			input.right = px > cx + 6;
 		}
 		world.megaBalls = state.megaBalls;
+		world.meleeReach = HAND_REACH[skin.hand];
 		const events = step(world, input);
 		audio.react(events);
 		const next = applyEvents(state, events);

@@ -47,7 +47,7 @@ import Layout from "@/layouts/Layout.astro";
 			<button id="toggle-pad" type="button" class="hint rounded border border-amber-300/40 bg-neutral-900 px-3 py-1 text-base tracking-wide text-amber-100 hover:border-amber-300">Przyciski na ekranie</button>
 		</div>
 
-		<p class="hint max-w-[960px] text-center text-sm tracking-wide text-amber-200/80 sm:text-base">strzałki / WASD: jazda · spacja: skok (przytrzymaj, by skoczyć wyżej; w locie raz jeszcze) · C: magnes zbiera złom (do 10 szt.) · X: rzut złomem · Z: mega kula (za 10 śrub) · M: dźwięk · mysz: trzymaj lewy, by jechać w stronę kursora, prawy skok, środkowy rzut</p>
+		<p class="hint max-w-[960px] text-center text-sm tracking-wide text-amber-200/80 sm:text-base">strzałki / WASD: jazda · spacja: skok (przytrzymaj, by skoczyć wyżej; w locie raz jeszcze) · C: magnes zbiera złom (do 10 szt.) · X: rzut złomem · Z: mega kula (za 10 śrub) · Shift / V: cios przedmiotem z ręki · M: dźwięk · mysz: trzymaj lewy, by jechać w stronę kursora, prawy skok, środkowy rzut</p>
 
 	</main>
 
@@ -132,7 +132,7 @@ import Layout from "@/layouts/Layout.astro";
 		position: absolute;
 		inset: auto 0 0 0;
 		display: grid;
-		grid-template-areas: "l r . z c j" "l r . . x j";
+		grid-template-areas: "l r . z c j" "l r . a x j";
 		grid-template-columns: 4rem 4rem 1fr 3.4rem 3.4rem 4rem;
 		grid-template-rows: 3.4rem 3.4rem;
 		gap: 0.5rem;

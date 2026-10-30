@@ -12,13 +12,14 @@ import {
 	type Player,
 	type Press,
 	SCRAP_CAPACITY,
+	SWING_FRAMES,
 	VIEW_H,
 	VIEW_W,
 	type World,
 } from "@/game/engine";
 import { type Level, type PickupKind, type Theme, TILE } from "@/game/level";
 import { BATTERY_MAX, BOLTS_PER_MEGA, type GameState, totalPoints } from "@/game/state";
-import { type Skin, tint } from "@/skin";
+import { HAND_REACH, type Skin, tint } from "@/skin";
 import { BOSS_NAMES, drawBoss } from "./bosses";
 import { type Ctx, glow, noise, outline, rim, rounded, shade, sphere } from "./draw";
 
@@ -1544,15 +1545,47 @@ function drawSrubek(ctx: Ctx, p: Player, skin: Skin, frame: number, camera: numb
 	sphere(ctx, 2.6, -10, 1.5, tint(skin.accent, 0.6), skin.accent);
 
 	// Trailing arm with the magnet claw, so the body reads as facing forward.
+	if (p.swingLeft === 0) drawArm(ctx, skin, frame, 0);
+
+	drawHead(ctx, skin, frame, legPhase);
+	if (p.swingLeft > 0) drawSwing(ctx, skin, frame, 1 - p.swingLeft / SWING_FRAMES);
+	ctx.restore();
+}
+
+function drawArm(ctx: Ctx, skin: Skin, frame: number, itemAngle: number): void {
 	rounded(ctx, -7.8, -12, 3.2, 6.5, 1.6);
 	ctx.fillStyle = shade(ctx, -12, 6.5, "#c2ccd5", "#5f6971");
 	ctx.fill();
 	outline(ctx, 0.6);
 	sphere(ctx, -6.2, -5.2, 2, "#ff9c84", "#c23b25");
+	ctx.save();
+	ctx.translate(-6.2, -5.2);
+	ctx.rotate(itemAngle);
+	ctx.translate(6.2, 5.2);
 	drawHandItem(ctx, skin, frame);
-
-	drawHead(ctx, skin, frame, legPhase);
 	ctx.restore();
+}
+
+/**
+ * The swing: the arm comes round to the front and the item chops from over the
+ * shoulder down ahead of Śrubek, with a swoosh tracing its arc. `t` runs 0..1.
+ */
+function drawSwing(ctx: Ctx, skin: Skin, frame: number, t: number): void {
+	const ease = 1 - (1 - t) * (1 - t);
+	const reach = HAND_REACH[skin.hand] / ACTOR;
+	ctx.save();
+	// Mirrored, the trailing arm sits on the leading side.
+	ctx.scale(-1, 1);
+	drawArm(ctx, skin, frame, 0.6 - ease * 2.4);
+	ctx.restore();
+	if (t < 0.25 || t > 0.85) return;
+	const k = (t - 0.25) / 0.6;
+	ctx.strokeStyle = `rgba(255,250,230,${(1 - k) * 0.8})`;
+	ctx.lineWidth = 2.2;
+	ctx.lineCap = "round";
+	ctx.beginPath();
+	ctx.arc(4, -10, Math.max(8, reach), -1.4, -1.4 + k * 2.2);
+	ctx.stroke();
 }
 
 function drawDrone(ctx: Ctx, x: number, y: number, dir: number, frame: number): void {

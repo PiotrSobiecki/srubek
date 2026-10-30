@@ -118,6 +118,7 @@ function applyEvent(state: GameState, event: GameEvent): GameState {
 			};
 		case "slam":
 		case "spring":
+		case "swing":
 			return state;
 		case "megaFired":
 			return { ...state, megaBalls: Math.max(0, state.megaBalls - 1) };

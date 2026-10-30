@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/PiotrSobiecki/srubek/compare/v1.22.0...v1.23.0) (2026-10-30)
+
+
+### Features
+
+* lewy przycisk myszy prowadzi Śrubka w stronę kursora ([6c8d406](https://github.com/PiotrSobiecki/srubek/commit/6c8d406292db586fc5299b00805b602de8e7f44a))
+
 # [1.22.0](https://github.com/PiotrSobiecki/srubek/compare/v1.21.0...v1.22.0) (2026-10-30)
 
 

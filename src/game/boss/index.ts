@@ -326,7 +326,8 @@ function volley(boss: Boss, world: World, events: GameEvent[]): void {
 		});
 	}
 	if (boss.ammo > 0) return;
-	boss.phase = boss.spec.attack === "strzal" ? "cool" : "dip";
+	// Hovering bosses sink within jumping reach while bare; grounded ones just cool down.
+	boss.phase = grounded(boss.spec) ? "cool" : "dip";
 	boss.timer = boss.spec.openFrames;
 }
 

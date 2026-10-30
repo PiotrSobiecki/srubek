@@ -181,7 +181,10 @@ describe("dzwig / strzal", () => {
 			fired += step(world, IDLE).filter((e) => e.type === "throw").length;
 		}
 		expect(fired).toBe(3);
-		expect(boss.phase).toBe("cool");
+		expect(boss.phase).toBe("dip");
+		// It sinks within reach of a jump from the floor.
+		run(world, 40);
+		expect(boss.y + boss.h).toBeGreaterThan(boss.floorY + boss.h - 70);
 	});
 
 	it("shots hurt Śrubek and vanish on the floor", () => {

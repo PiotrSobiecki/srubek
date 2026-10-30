@@ -82,21 +82,46 @@ import Layout from "@/layouts/Layout.astro";
 	[hidden] {
 		display: none !important;
 	}
-	#game {
+	#game,
+	#stage {
 		touch-action: none;
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+	.no-scroll,
+	.no-scroll body {
+		overflow: hidden;
+		overscroll-behavior: none;
 	}
 
-	/* Fullscreen: black stage, canvas letterboxed to the screen, pad on top. */
-	#stage:fullscreen {
+	/* Fullscreen (native or pinned): black stage, canvas letterboxed to the screen, pad on top. */
+	#stage.is-fullscreen {
+		position: fixed;
+		inset: 0;
+		z-index: 40;
+		width: auto;
+		max-width: none;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		background: #000;
 	}
-	#stage:fullscreen #game {
-		width: min(100vw, calc(100vh * 960 / 512));
+	#stage.is-fullscreen #game {
+		width: min(100vw, calc(100dvh * 960 / 512));
 		height: auto;
 		border-radius: 0;
+		box-shadow: none;
+	}
+	#stage.is-fullscreen .pad {
+		grid-template-columns: 4.6rem 4.6rem 1fr 4rem 4rem 4.6rem;
+		grid-template-rows: 4rem 4rem;
+		gap: 0.6rem;
+		padding: 0 max(0.8rem, env(safe-area-inset-left)) max(0.8rem, env(safe-area-inset-bottom))
+			max(0.8rem, env(safe-area-inset-right));
+	}
+	#stage.is-fullscreen .pad-btn {
+		font-size: 1.9rem;
 	}
 
 	/* On-screen pad: movement bottom-left, actions bottom-right. */
@@ -105,10 +130,10 @@ import Layout from "@/layouts/Layout.astro";
 		inset: auto 0 0 0;
 		display: grid;
 		grid-template-areas: "l r . z c j" "l r . . x j";
-		grid-template-columns: 3.5rem 3.5rem 1fr 3rem 3rem 3.5rem;
-		grid-template-rows: 3rem 3rem;
-		gap: 0.4rem;
-		padding: 0.6rem;
+		grid-template-columns: 4rem 4rem 1fr 3.4rem 3.4rem 4rem;
+		grid-template-rows: 3.4rem 3.4rem;
+		gap: 0.5rem;
+		padding: 0 0.6rem max(0.6rem, env(safe-area-inset-bottom)) 0.6rem;
 		pointer-events: none;
 	}
 	.pad-btn {
@@ -121,9 +146,10 @@ import Layout from "@/layouts/Layout.astro";
 		background: rgba(20, 16, 30, 0.55);
 		color: #ffe9a8;
 		font-family: "Bangers", "Impact", sans-serif;
-		font-size: 1.4rem;
+		font-size: 1.6rem;
 		letter-spacing: 0.05em;
 		backdrop-filter: blur(2px);
+		-webkit-tap-highlight-color: transparent;
 	}
 	.pad-btn.is-down {
 		background: rgba(255, 180, 70, 0.75);

@@ -102,20 +102,37 @@ export function mountMouse(canvas: HTMLCanvasElement, game: Game): void {
 	});
 }
 
-/** Fullscreen for the stage, trying to lock landscape on phones. */
+/**
+ * Fullscreen for the stage. Where the Fullscreen API is missing (iPhone Safari)
+ * the stage is pinned over the page instead; both paths toggle the same class so
+ * the CSS has one source of truth. Landscape lock is attempted and ignored on failure.
+ */
 export function mountFullscreen(stage: HTMLElement, button: HTMLButtonElement): void {
-	button.addEventListener("click", async () => {
-		if (document.fullscreenElement) {
-			await document.exitFullscreen();
-			return;
-		}
-		await stage.requestFullscreen().catch(() => undefined);
+	const canNative = typeof stage.requestFullscreen === "function" && document.fullscreenEnabled;
+	const apply = (on: boolean): void => {
+		stage.classList.toggle("is-fullscreen", on);
+		document.documentElement.classList.toggle("no-scroll", on);
+		button.textContent = on ? "Zamknij pełny ekran" : "Pełny ekran";
+	};
+	const lockLandscape = async (): Promise<void> => {
 		const orientation = screen.orientation as ScreenOrientation & {
 			lock?: (o: string) => Promise<void>;
 		};
 		await orientation.lock?.("landscape").catch(() => undefined);
+	};
+	button.addEventListener("click", async () => {
+		const on = stage.classList.contains("is-fullscreen");
+		if (on) {
+			if (document.fullscreenElement) await document.exitFullscreen().catch(() => undefined);
+			apply(false);
+			return;
+		}
+		if (canNative) await stage.requestFullscreen().catch(() => undefined);
+		apply(true);
+		await lockLandscape();
 	});
+	// Leaving native fullscreen by gesture or Esc drops the class too.
 	document.addEventListener("fullscreenchange", () => {
-		button.textContent = document.fullscreenElement ? "Zamknij pełny ekran" : "Pełny ekran";
+		if (!document.fullscreenElement && canNative) apply(false);
 	});
 }

@@ -1,3 +1,10 @@
+# [1.21.0](https://github.com/PiotrSobiecki/srubek/compare/v1.20.0...v1.21.0) (2026-10-30)
+
+
+### Features
+
+* przyciski dotykowe, mysz i pełny ekran ([e7e2766](https://github.com/PiotrSobiecki/srubek/commit/e7e2766324a850fe415c25dcc44373f60c740e8f))
+
 # [1.20.0](https://github.com/PiotrSobiecki/srubek/compare/v1.19.2...v1.20.0) (2026-10-30)
 
 

@@ -20,7 +20,8 @@ type SoundName =
 	| "throw"
 	| "charge"
 	| "gate"
-	| "life";
+	| "life"
+	| "mega";
 
 export interface Audio {
 	unlock(): void;
@@ -107,6 +108,10 @@ const SOUNDS: Record<SoundName, (ctx: AudioContext, out: GainNode) => void> = {
 		tone(c, o, { type: "triangle", from: 440, to: 470, dur: 0.3, gain: 0.25 });
 		tone(c, o, { type: "triangle", from: 880, to: 940, dur: 0.3, gain: 0.12 });
 	},
+	mega: (c, o) => {
+		noise(c, o, 0.35, 2600, 0.6);
+		tone(c, o, { type: "sawtooth", from: 120, to: 480, dur: 0.35, gain: 0.35 });
+	},
 	life: (c, o) => {
 		for (const [i, f] of [659, 784, 988, 1319, 1568].entries()) {
 			tone(c, o, { type: "square", from: f, to: f, dur: 0.12, delay: i * 0.08, gain: 0.2 });
@@ -132,6 +137,7 @@ const BY_EVENT: Partial<Record<GameEvent["type"], SoundName>> = {
 	slam: "boom",
 	bossHit: "gear",
 	bossDown: "gate",
+	megaFired: "mega",
 };
 
 /** `track` picks /music/level<n>.mp3; the pack has 1..3. */

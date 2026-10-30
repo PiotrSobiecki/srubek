@@ -1,30 +1,42 @@
 /**
  * Boss fights. A boss is a body, an attack and a weak spot, scaled by the level
- * number; `stepBoss` runs one frame of it against the player. Phase 1 ships one
- * combination: the giant press that drops on Śrubek and bares its core after
- * every slam.
+ * number; `stepBoss` runs one frame of it against the player. The pool holds
+ * every allowed combination and `pickBoss` hands out one a run has not met.
  */
 
 import { type GameEvent, hurt, type World } from "@/game/engine";
 import { ROWS, TILE } from "@/game/level";
 
-export type BossBody = "prasa";
-export type BossAttack = "opad";
-export type BossWeakSpot = "rdzen";
+export type BossBody = "prasa" | "dron-matka" | "pies-alfa" | "dzwig";
+export type BossAttack = "opad" | "drony" | "szarza" | "strzal";
+export type BossWeakSpot = "rdzen" | "antena" | "grzbiet";
 
 export interface BossSpec {
 	body: BossBody;
 	attack: BossAttack;
 	weakSpot: BossWeakSpot;
 	hp: number;
-	/** Frames hovering before the drop. */
+	/** Frames between attacks. */
 	waitFrames: number;
-	/** Frames the core stays bare after a slam. */
+	/** Frames the weak spot stays bare after an attack. */
 	openFrames: number;
 	trackSpeed: number;
 	dropSpeed: number;
 	riseSpeed: number;
+	chargeSpeed: number;
 }
+
+type BossPhase =
+	| "track"
+	| "drop"
+	| "slam"
+	| "rise"
+	| "charge"
+	| "stun"
+	| "turn"
+	| "volley"
+	| "cool"
+	| "dip";
 
 export interface Boss {
 	spec: BossSpec;
@@ -34,13 +46,38 @@ export interface Boss {
 	h: number;
 	topY: number;
 	floorY: number;
-	phase: "track" | "drop" | "slam" | "rise";
+	phase: BossPhase;
 	timer: number;
 	hp: number;
 	alive: boolean;
+	dir: 1 | -1;
+	/** Shots left in the current volley. */
+	ammo: number;
 }
 
-/** Numbers grow gently with the level so a later press hits harder and rests less. */
+/** Which attacks and weak spots a body can carry. */
+const BODIES: Record<BossBody, { attacks: BossAttack[]; weakSpots: BossWeakSpot[] }> = {
+	prasa: { attacks: ["opad", "strzal"], weakSpots: ["rdzen"] },
+	"dron-matka": { attacks: ["drony", "strzal"], weakSpots: ["antena"] },
+	"pies-alfa": { attacks: ["szarza"], weakSpots: ["grzbiet"] },
+	dzwig: { attacks: ["opad", "strzal"], weakSpots: ["rdzen", "antena"] },
+};
+
+export function bossKey(body: BossBody, attack: BossAttack, weakSpot: BossWeakSpot): string {
+	return `${body}/${attack}/${weakSpot}`;
+}
+
+/** Every allowed (body, attack, weak spot) triple. */
+export function bossPool(): [BossBody, BossAttack, BossWeakSpot][] {
+	const out: [BossBody, BossAttack, BossWeakSpot][] = [];
+	for (const [body, def] of Object.entries(BODIES) as [BossBody, (typeof BODIES)[BossBody]][]) {
+		for (const attack of def.attacks)
+			for (const weakSpot of def.weakSpots) out.push([body, attack, weakSpot]);
+	}
+	return out;
+}
+
+/** Numbers grow gently with the level so a later boss hits harder and rests less. */
 export function makeBoss(
 	body: BossBody,
 	attack: BossAttack,
@@ -58,26 +95,70 @@ export function makeBoss(
 		trackSpeed: Math.min(3, 1.2 + k * 0.03),
 		dropSpeed: Math.min(9, 5 + k * 0.05),
 		riseSpeed: Math.min(3, 1 + k * 0.03),
+		chargeSpeed: Math.min(6, 3 + k * 0.04),
 	};
 }
 
+/**
+ * The boss for a level: level 1 is always the giant press; later levels take a
+ * seeded pick from the pool, skipping anything this run has already beaten
+ * until the whole pool has been seen.
+ */
+export function pickBoss(level: number, seen: readonly string[]): BossSpec {
+	if (level === 1) return makeBoss("prasa", "opad", "rdzen", 1);
+	const pool = bossPool();
+	const fresh = pool.filter(([b, a, w]) => !seen.includes(bossKey(b, a, w)));
+	const choices = fresh.length > 0 ? fresh : pool;
+	const idx =
+		Math.floor(((Math.sin(level * 9301 + 49297) + 1) / 2) * choices.length) % choices.length;
+	const [body, attack, weakSpot] = choices[idx] ?? pool[0] ?? ["prasa", "opad", "rdzen"];
+	return makeBoss(body, attack, weakSpot, level);
+}
+
+const SIZES: Record<BossBody, { w: number; h: number }> = {
+	prasa: { w: 48, h: 28 },
+	"dron-matka": { w: 44, h: 30 },
+	"pies-alfa": { w: 56, h: 26 },
+	dzwig: { w: 36, h: 32 },
+};
+
 export function createBoss(spec: BossSpec, arenaWidthTiles: number): Boss {
-	const w = 48;
-	const h = 28;
+	const { w, h } = SIZES[spec.body];
 	const topY = 12;
+	const floorY = (ROWS - 2) * TILE - h;
+	const grounded = spec.attack === "szarza";
 	return {
 		spec,
 		x: (arenaWidthTiles * TILE) / 2 - w / 2,
-		y: topY,
+		y: grounded ? floorY : topY,
 		w,
 		h,
 		topY,
-		floorY: (ROWS - 2) * TILE - h,
+		floorY,
 		phase: "track",
 		timer: spec.waitFrames,
 		hp: spec.hp,
 		alive: true,
+		dir: -1,
+		ammo: 0,
 	};
+}
+
+/** True while the weak spot is bare and a stomp counts. */
+export function coreOpen(boss: Boss): boolean {
+	return (
+		boss.alive &&
+		(boss.phase === "slam" ||
+			boss.phase === "stun" ||
+			boss.phase === "cool" ||
+			boss.phase === "dip")
+	);
+}
+
+// ── attacks ──────────────────────────────────────────────────────────
+
+function arenaWidth(world: World): number {
+	return world.level.widthTiles * TILE;
 }
 
 function track(boss: Boss, world: World): void {
@@ -85,7 +166,26 @@ function track(boss: Boss, world: World): void {
 	const target = p.x + p.w / 2 - boss.w / 2;
 	const dx = target - boss.x;
 	boss.x += Math.sign(dx) * Math.min(Math.abs(dx), boss.spec.trackSpeed);
-	if (boss.timer-- <= 0) boss.phase = "drop";
+	boss.dir = dx < 0 ? -1 : 1;
+	if (boss.timer-- > 0) return;
+	switch (boss.spec.attack) {
+		case "opad":
+			boss.phase = "drop";
+			break;
+		case "szarza":
+			boss.phase = "charge";
+			break;
+		case "strzal":
+			boss.phase = "volley";
+			boss.ammo = 3;
+			boss.timer = 0;
+			break;
+		case "drony":
+			boss.phase = "volley";
+			boss.ammo = 2;
+			boss.timer = 0;
+			break;
+	}
 }
 
 function drop(boss: Boss, world: World, events: GameEvent[]): void {
@@ -109,9 +209,63 @@ function rise(boss: Boss): void {
 	boss.timer = boss.spec.waitFrames;
 }
 
-/** True while the core is bare and a stomp counts. */
-export function coreOpen(boss: Boss): boolean {
-	return boss.alive && boss.phase === "slam";
+/** The dog-alpha runs at the player until it hits a wall and stuns itself. */
+function charge(boss: Boss, world: World, events: GameEvent[]): void {
+	boss.x += boss.dir * boss.spec.chargeSpeed;
+	const left = TILE;
+	const right = arenaWidth(world) - TILE - boss.w;
+	if (boss.x > left && boss.x < right) return;
+	boss.x = Math.max(left, Math.min(right, boss.x));
+	boss.phase = "stun";
+	boss.timer = boss.spec.openFrames;
+	world.effects.push({
+		kind: "quake",
+		x: boss.x + boss.w / 2,
+		y: boss.y + boss.h,
+		frame: world.frame,
+	});
+	events.push({ type: "slam" });
+}
+
+/** Shots or baby drones, one every few frames, then a dip that bares the weak spot. */
+function volley(boss: Boss, world: World, events: GameEvent[]): void {
+	if (boss.timer-- > 0) return;
+	boss.timer = 18;
+	boss.ammo -= 1;
+	const cx = boss.x + boss.w / 2;
+	const cy = boss.y + boss.h;
+	if (boss.spec.attack === "strzal") {
+		const p = world.player;
+		const dx = p.x + p.w / 2 - cx;
+		const dy = p.y - cy;
+		const len = Math.hypot(dx, dy) || 1;
+		world.shots.push({ x: cx - 4, y: cy, vx: (dx / len) * 3, vy: Math.max(0.5, (dy / len) * 3) });
+		events.push({ type: "throw" });
+	} else {
+		const span = arenaWidth(world);
+		world.drones.push({
+			x: cx - 6,
+			y: cy + 8,
+			w: 12,
+			h: 8,
+			minX: TILE + 2,
+			maxX: span - TILE - 14,
+			dir: boss.dir,
+			alive: true,
+		});
+	}
+	if (boss.ammo > 0) return;
+	boss.phase = boss.spec.attack === "strzal" ? "cool" : "dip";
+	boss.timer = boss.spec.openFrames;
+}
+
+function dip(boss: Boss): void {
+	// Sink to mid height while bare, so the stomp is reachable, then climb back.
+	const target = boss.floorY - 40;
+	if (boss.timer > boss.spec.openFrames / 2)
+		boss.y = Math.min(target, boss.y + boss.spec.dropSpeed);
+	if (boss.timer-- > 0) return;
+	boss.phase = "rise";
 }
 
 function touch(boss: Boss, world: World, events: GameEvent[]): void {
@@ -119,24 +273,49 @@ function touch(boss: Boss, world: World, events: GameEvent[]): void {
 	const overlapping =
 		p.x < boss.x + boss.w && p.x + p.w > boss.x && p.y < boss.y + boss.h && p.y + p.h > boss.y;
 	if (!overlapping) return;
-	if (boss.phase === "drop") {
+	if (boss.phase === "drop" || boss.phase === "charge") {
 		hurt(p, boss.x + boss.w / 2, events);
 		return;
 	}
 	const fromAbove = p.vy > 0 && p.y + p.h - p.vy <= boss.y + 6;
 	if (!coreOpen(boss) || !fromAbove) return;
-	boss.hp -= 1;
 	p.vy = -4.5;
 	p.sy = 0;
+	damageBoss(boss, world, events);
+}
+
+/** One hit on a bared weak spot, by stomp or by thrown scrap. */
+export function damageBoss(boss: Boss, world: World, events: GameEvent[]): void {
+	boss.hp -= 1;
 	world.effects.push({ kind: "burst", x: boss.x + boss.w / 2, y: boss.y, frame: world.frame });
 	if (boss.hp > 0) {
-		// Stunned: the press pulls up right away.
-		boss.phase = "rise";
+		// Stunned: the boss backs off right away.
+		boss.phase = boss.spec.attack === "szarza" ? "turn" : "rise";
+		boss.timer = boss.spec.waitFrames;
 		events.push({ type: "bossHit" });
 		return;
 	}
 	boss.alive = false;
-	events.push({ type: "bossDown" });
+	events.push({
+		type: "bossDown",
+		boss: bossKey(boss.spec.body, boss.spec.attack, boss.spec.weakSpot),
+	});
+}
+
+/** A thrown piece on a bared weak spot counts like a stomp; true when it landed. */
+export function scrapHitsBoss(
+	world: World,
+	x: number,
+	y: number,
+	size: number,
+	events: GameEvent[],
+): boolean {
+	const boss = world.boss;
+	if (!boss || !coreOpen(boss)) return false;
+	if (x >= boss.x + boss.w || x + size <= boss.x || y >= boss.y + boss.h || y + size <= boss.y)
+		return false;
+	damageBoss(boss, world, events);
+	return true;
 }
 
 export function stepBoss(world: World, events: GameEvent[]): void {
@@ -144,16 +323,33 @@ export function stepBoss(world: World, events: GameEvent[]): void {
 	if (!boss || !boss.alive) return;
 	switch (boss.phase) {
 		case "track":
-			track(boss, world);
+			if (boss.spec.attack === "szarza") boss.phase = boss.timer-- > 0 ? "track" : "charge";
+			else track(boss, world);
 			break;
 		case "drop":
 			drop(boss, world, events);
 			break;
 		case "slam":
-			if (boss.timer-- <= 0) boss.phase = "rise";
+		case "stun":
+		case "cool":
+			if (boss.timer-- <= 0) boss.phase = boss.spec.attack === "szarza" ? "turn" : "rise";
 			break;
 		case "rise":
 			rise(boss);
+			break;
+		case "charge":
+			charge(boss, world, events);
+			break;
+		case "turn":
+			boss.dir = world.player.x + world.player.w / 2 < boss.x + boss.w / 2 ? -1 : 1;
+			boss.phase = "track";
+			boss.timer = boss.spec.waitFrames;
+			break;
+		case "volley":
+			volley(boss, world, events);
+			break;
+		case "dip":
+			dip(boss);
 			break;
 	}
 	touch(boss, world, events);

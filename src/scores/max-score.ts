@@ -4,7 +4,7 @@
  * sides agree without either trusting the other.
  */
 
-import { makeBoss } from "@/game/boss";
+import { pickBoss } from "@/game/boss";
 import { buildLevel } from "@/game/level";
 import {
 	BOLT_POINTS,
@@ -29,7 +29,7 @@ function levelMax(n: number): number {
 	const level = buildLevel(n);
 	const pickups = level.pickups.reduce((sum, p) => sum + PICKUP_POINTS[p.kind], 0);
 	const enemies = level.drones.length * DRONE_POINTS + level.dogs.length * DOG_POINTS;
-	const boss = (makeBoss("prasa", "opad", "rdzen", n).hp - 1) * BOSS_HIT_POINTS + BOSS_POINTS;
+	const boss = (pickBoss(n, []).hp - 1) * BOSS_HIT_POINTS + BOSS_POINTS;
 	return pickups + enemies + boss;
 }
 

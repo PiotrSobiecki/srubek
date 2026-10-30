@@ -4,7 +4,7 @@
  */
 
 import type { Boss } from "@/game/boss";
-import { stepBoss } from "@/game/boss";
+import { damageBoss, scrapHitsBoss, stepBoss } from "@/game/boss";
 import { isSolid, type Level, type PickupKind, ROWS, TILE, type Vec } from "@/game/level";
 
 export const VIEW_W = 480;
@@ -45,6 +45,7 @@ export interface Input {
 	jump: boolean;
 	magnet: boolean;
 	throw: boolean;
+	mega: boolean;
 }
 
 export interface Player {
@@ -68,6 +69,7 @@ export interface Player {
 	boostLeft: number;
 	magnetHeld: boolean;
 	throwHeld: boolean;
+	megaHeld: boolean;
 }
 
 interface PickupItem extends Vec {
@@ -100,7 +102,7 @@ interface Scrap {
 	y: number;
 	vx: number;
 	vy: number;
-	state: "ground" | "held" | "thrown";
+	state: "ground" | "held" | "thrown" | "gone";
 }
 
 interface Dog {
@@ -121,6 +123,20 @@ export interface Press {
 	timer: number;
 }
 
+interface Shot {
+	x: number;
+	y: number;
+	vx: number;
+	vy: number;
+}
+
+/** The mega bolt ball: flies level, pierces enemies, hits a boss open or not. */
+interface Mega {
+	x: number;
+	y: number;
+	vx: number;
+}
+
 export interface World {
 	level: Level;
 	player: Player;
@@ -130,6 +146,11 @@ export interface World {
 	dogs: Dog[];
 	presses: Press[];
 	boss?: Boss;
+	/** Scrap fired by a boss; it hurts Śrubek and vanishes on landing. */
+	shots: Shot[];
+	megas: Mega[];
+	/** Mirror of the state's stock, set by the caller before each step. */
+	megaBalls: number;
 	effects: Effect[];
 	camera: number;
 	frame: number;
@@ -149,11 +170,24 @@ export type GameEvent =
 	| { type: "throw" }
 	| { type: "slam" }
 	| { type: "bossHit" }
-	| { type: "bossDown" };
+	| { type: "bossDown"; boss: string }
+	| { type: "megaFired" };
 
-export function createWorld(level: Level, boss?: Boss): World {
+/** Pieces Śrubek carries over from the previous world, already in the pouch. */
+export function carriedScrap(world: World | undefined): number {
+	return world ? world.scraps.filter((s) => s.state === "held").length : 0;
+}
+
+export function createWorld(level: Level, boss?: Boss, carried = 0): World {
 	const w = 12;
 	const h = 16;
+	const pouch: Scrap[] = Array.from({ length: carried }, () => ({
+		x: 0,
+		y: 0,
+		vx: 0,
+		vy: 0,
+		state: "held",
+	}));
 	return {
 		level,
 		boss,
@@ -175,6 +209,7 @@ export function createWorld(level: Level, boss?: Boss): World {
 			boostLeft: 0,
 			magnetHeld: false,
 			throwHeld: false,
+			megaHeld: false,
 		},
 		pickups: level.pickups.map((n) => ({ ...n, taken: false })),
 		drones: level.drones.map((d) => ({
@@ -187,13 +222,15 @@ export function createWorld(level: Level, boss?: Boss): World {
 			dir: 1,
 			alive: true,
 		})),
-		scraps: level.scraps.map((s) => ({
-			x: s.x * TILE + 2,
-			y: s.y * TILE + 4,
-			vx: 0,
-			vy: 0,
-			state: "ground",
-		})),
+		scraps: pouch.concat(
+			level.scraps.map((s) => ({
+				x: s.x * TILE + 2,
+				y: s.y * TILE + 4,
+				vx: 0,
+				vy: 0,
+				state: "ground" as const,
+			})),
+		),
 		dogs: level.dogs.map((d) => ({
 			x: d.x * TILE,
 			y: d.y * TILE + 6,
@@ -211,6 +248,9 @@ export function createWorld(level: Level, boss?: Boss): World {
 			// Staggered so a corridor of presses never drops in unison.
 			timer: Math.round(PHYSICS.pressWait * level.tempo) - ((i * 23) % PHYSICS.pressWait),
 		})),
+		shots: [],
+		megas: [],
+		megaBalls: 0,
 		effects: [],
 		camera: 0,
 		frame: 0,
@@ -335,6 +375,8 @@ function moveDrones(world: World): void {
 const SCRAP = 12;
 /** How many pieces the magnet can carry at once. */
 export const SCRAP_CAPACITY = 10;
+export const MEGA_SIZE = 20;
+const MEGA_SPEED = 5;
 
 function moveDogs(world: World): void {
 	for (const d of world.dogs) {
@@ -423,22 +465,30 @@ function flyScrap(level: Level, s: Scrap): void {
 	if ((onFloor && s.vx === 0) || s.y > ROWS * TILE) s.state = "ground";
 }
 
-function scrapHitsDog(world: World, s: Scrap, events: GameEvent[]): void {
+/** A piece that hit something shatters: it cannot be picked up again. */
+function shatter(world: World, s: Scrap): void {
+	s.state = "gone";
+	s.vx = 0;
+	world.effects.push({ kind: "spark", x: s.x + SCRAP / 2, y: s.y + SCRAP / 2, frame: world.frame });
+}
+
+function scrapHits(world: World, s: Scrap, events: GameEvent[]): void {
 	for (const d of world.dogs) {
 		if (!d.alive || !overlaps({ x: s.x, y: s.y, w: SCRAP, h: SCRAP }, d.x, d.y, d.w, d.h)) continue;
 		d.alive = false;
-		s.state = "ground";
-		s.vx = 0;
+		shatter(world, s);
 		world.effects.push({ kind: "burst", x: d.x + d.w / 2, y: d.y + d.h / 2, frame: world.frame });
 		events.push({ type: "dog" });
+		return;
 	}
+	if (scrapHitsBoss(world, s.x, s.y, SCRAP, events)) shatter(world, s);
 }
 
 function moveScraps(world: World, events: GameEvent[]): void {
 	for (const s of world.scraps) {
 		if (s.state !== "thrown") continue;
 		flyScrap(world.level, s);
-		if (s.state === "thrown") scrapHitsDog(world, s, events);
+		if (s.state === "thrown") scrapHits(world, s, events);
 	}
 }
 
@@ -447,6 +497,61 @@ function touchDogs(world: World, events: GameEvent[]): void {
 	for (const d of world.dogs) {
 		if (d.alive && overlaps(p, d.x, d.y, d.w, d.h)) hurt(p, d.x + d.w / 2, events);
 	}
+}
+
+function fireMega(world: World, input: Input, events: GameEvent[]): void {
+	const p = world.player;
+	const pressed = input.mega && !p.megaHeld;
+	p.megaHeld = input.mega;
+	if (!pressed || world.megaBalls <= 0) return;
+	world.megaBalls -= 1;
+	world.megas.push({
+		x: p.facing > 0 ? p.x + p.w : p.x - MEGA_SIZE,
+		// Bottom flush with the wheels, so it clears the floor Śrubek stands on.
+		y: p.y + p.h - MEGA_SIZE,
+		vx: p.facing * MEGA_SPEED,
+	});
+	world.effects.push({ kind: "magnet", x: p.x + p.w / 2, y: p.y + 6, frame: world.frame });
+	events.push({ type: "megaFired" });
+}
+
+function moveMegas(world: World, events: GameEvent[]): void {
+	world.megas = world.megas.filter((m) => {
+		m.x += m.vx;
+		const box = { x: m.x, y: m.y, w: MEGA_SIZE, h: MEGA_SIZE };
+		for (const d of world.drones) {
+			if (!d.alive || !overlaps(box, d.x, d.y, d.w, d.h)) continue;
+			d.alive = false;
+			world.effects.push({ kind: "burst", x: d.x + d.w / 2, y: d.y + d.h / 2, frame: world.frame });
+			events.push({ type: "drone" });
+		}
+		for (const d of world.dogs) {
+			if (!d.alive || !overlaps(box, d.x, d.y, d.w, d.h)) continue;
+			d.alive = false;
+			world.effects.push({ kind: "burst", x: d.x + d.w / 2, y: d.y + d.h / 2, frame: world.frame });
+			events.push({ type: "dog" });
+		}
+		const boss = world.boss;
+		if (boss?.alive && overlaps(box, boss.x, boss.y, boss.w, boss.h)) {
+			damageBoss(boss, world, events);
+			return false;
+		}
+		return !overlapsSolid(world.level, m.x, m.y, MEGA_SIZE, MEGA_SIZE);
+	});
+}
+
+function moveShots(world: World, events: GameEvent[]): void {
+	const p = world.player;
+	world.shots = world.shots.filter((s) => {
+		s.vy = Math.min(PHYSICS.maxFall, s.vy + PHYSICS.gravity * 0.5);
+		s.x += s.vx;
+		s.y += s.vy;
+		if (overlaps(p, s.x, s.y, SCRAP, SCRAP)) {
+			hurt(p, s.x + SCRAP / 2, events);
+			return false;
+		}
+		return !overlapsSolid(world.level, s.x, s.y, SCRAP, SCRAP) && s.y < ROWS * TILE;
+	});
 }
 
 export function hurt(p: Player, fromX: number, events: GameEvent[]): void {
@@ -548,6 +653,7 @@ export function step(world: World, input: Input): GameEvent[] {
 	moveDrones(world);
 	moveDogs(world);
 	magnet(world, input, events);
+	fireMega(world, input, events);
 	// Dust kicked up by the wheels at speed.
 	if (p.onGround && Math.abs(p.vx) > 1.6 && world.frame % 5 === 0) {
 		world.effects.push({
@@ -563,6 +669,8 @@ export function step(world: World, input: Input): GameEvent[] {
 	touchPresses(world, events);
 	touchPickups(world, events);
 	stepBoss(world, events);
+	moveShots(world, events);
+	moveMegas(world, events);
 	if (p.hurtLeft > 0) p.hurtLeft -= 1;
 	if (p.boostLeft > 0) p.boostLeft -= 1;
 	if (p.y > ROWS * TILE) events.push({ type: "fall" });

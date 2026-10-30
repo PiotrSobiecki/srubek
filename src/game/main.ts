@@ -1,8 +1,15 @@
 /** Browser entry: keyboard in, fixed-step simulation, one render per animation frame. */
 
 import { createAudio } from "@/game/audio";
-import { createBoss, makeBoss } from "@/game/boss";
-import { createWorld, type Input, step, type World } from "@/game/engine";
+import {
+	type BossAttack,
+	type BossBody,
+	type BossWeakSpot,
+	createBoss,
+	makeBoss,
+	pickBoss,
+} from "@/game/boss";
+import { carriedScrap, createWorld, type Input, step, type World } from "@/game/engine";
 import { buildArena, buildLevel, type Level } from "@/game/level";
 import { createRenderer } from "@/game/render";
 import { applyEvents, createState, type GameState } from "@/game/state";
@@ -17,6 +24,8 @@ const KEYS: Record<string, keyof Input> = {
 	Space: "jump",
 	ArrowUp: "jump",
 	KeyW: "jump",
+	KeyZ: "mega",
+	KeyV: "mega",
 	KeyC: "magnet",
 	KeyE: "magnet",
 	KeyX: "throw",
@@ -32,7 +41,14 @@ export interface Hooks {
 }
 
 export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): void {
-	const input: Input = { left: false, right: false, jump: false, magnet: false, throw: false };
+	const input: Input = {
+		left: false,
+		right: false,
+		jump: false,
+		magnet: false,
+		throw: false,
+		mega: false,
+	};
 	// ?level=<n> and ?x=<tile> open a later level or section for a look without replaying.
 	const query = new URLSearchParams(location.search);
 	const startLevel = Math.max(1, Math.floor(Number(query.get("level")) || 1));
@@ -76,24 +92,34 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): void {
 	window.addEventListener("keyup", onKey(false));
 
 	const arena = buildArena();
-	const enterArena = (n: number): World =>
-		createWorld(arena, createBoss(makeBoss("prasa", "opad", "rdzen", n), arena.widthTiles));
+	// ?boss=korpus/atak/slaby-punkt forces one combination, for looking at a boss without earning it.
+	const forced = query.get("boss")?.split("/");
+	const bossFor = (n: number, seen: readonly string[]) =>
+		forced && forced.length === 3
+			? makeBoss(forced[0] as BossBody, forced[1] as BossAttack, forced[2] as BossWeakSpot, n)
+			: pickBoss(n, seen);
+	const enterArena = (n: number, seen: readonly string[]): World =>
+		createWorld(arena, createBoss(bossFor(n, seen), arena.widthTiles), carriedScrap(world));
 
 	/** Picks the world a new state calls for: the arena after the gate, a fresh one after a lost life. */
 	const worldFor = (prev: GameState, next: GameState): World => {
 		if (next.level !== prev.level) {
 			level = freshLevel(next.level);
 			audio.setTrack(next.level);
-			return createWorld(level);
+			return createWorld(level, undefined, carriedScrap(world));
 		}
-		if (next.status === "boss" && prev.status === "playing") return enterArena(next.level);
+		if (next.status === "boss" && prev.status === "playing")
+			return enterArena(next.level, next.bossesSeen);
 		if (next.respawns !== prev.respawns)
-			return next.status === "boss" ? enterArena(next.level) : createWorld(level);
+			return next.status === "boss"
+				? enterArena(next.level, next.bossesSeen)
+				: createWorld(level, undefined, carriedScrap(world));
 		return world;
 	};
 
 	const tick = (): void => {
 		if (state.status === "over") return;
+		world.megaBalls = state.megaBalls;
 		const events = step(world, input);
 		audio.react(events);
 		const next = applyEvents(state, events);

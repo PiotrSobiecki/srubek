@@ -1,7 +1,14 @@
 import { buildLevel, levelFromRows, ROWS, TILE } from "@/game/level";
-import { createWorld, type Input, SCRAP_CAPACITY, step, type World } from "./index";
+import { carriedScrap, createWorld, type Input, SCRAP_CAPACITY, step, type World } from "./index";
 
-const IDLE: Input = { left: false, right: false, jump: false, magnet: false, throw: false };
+const IDLE: Input = {
+	left: false,
+	right: false,
+	jump: false,
+	magnet: false,
+	throw: false,
+	mega: false,
+};
 
 // 20 tiles wide, wall on the right edge comes from the grid border.
 const FLAT = levelFromRows([
@@ -264,7 +271,7 @@ describe("magnet and dog-machine", () => {
 		expect(world.scraps.every((s) => s.state === "ground")).toBe(true);
 	});
 
-	it("throws the held scrap into the dog, which dies for points", () => {
+	it("throws the held scrap into the dog, which dies for points; the piece shatters", () => {
 		const world = createWorld(YARD);
 		settle(world);
 		tap(world, MAGNET);
@@ -273,7 +280,7 @@ describe("magnet and dog-machine", () => {
 		for (let i = 0; i < 90; i++) events.push(...step(world, IDLE));
 		expect(events).toContainEqual({ type: "dog" });
 		expect(world.dogs[0]?.alive).toBe(false);
-		expect(world.scraps[0]?.state).toBe("ground");
+		expect(world.scraps[0]?.state).toBe("gone");
 	});
 
 	it("hurts Śrubek when stomped instead of dying, and walks its platform", () => {
@@ -417,5 +424,38 @@ describe("press tempo", () => {
 			return 400;
 		};
 		expect(firstDrop(0.5)).toBeLessThan(firstDrop(1));
+	});
+});
+
+describe("carried pouch and the mega ball", () => {
+	it("starts a new world with the carried pieces already in the pouch", () => {
+		const world = createWorld(FLAT, undefined, 4);
+		expect(world.scraps.filter((s) => s.state === "held")).toHaveLength(4);
+		expect(carriedScrap(world)).toBe(4);
+	});
+
+	it("fires a mega ball only from stock, and it mows down a drone in its path", () => {
+		const world = createWorld(
+			levelFromRows([
+				"....................",
+				"....................",
+				"....................",
+				"....................",
+				"....................",
+				"....................",
+				"..P....---v---......",
+				"####################",
+			]),
+		);
+		settle(world);
+		expect(step(world, { ...IDLE, mega: true })).not.toContainEqual({ type: "megaFired" });
+		step(world, IDLE);
+		world.megaBalls = 1;
+		expect(step(world, { ...IDLE, mega: true })).toContainEqual({ type: "megaFired" });
+		expect(world.megaBalls).toBe(0);
+		const events: ReturnType<typeof step> = [];
+		for (let i = 0; i < 60; i++) events.push(...step(world, IDLE));
+		expect(events).toContainEqual({ type: "drone" });
+		expect(world.megas).toHaveLength(0);
 	});
 });

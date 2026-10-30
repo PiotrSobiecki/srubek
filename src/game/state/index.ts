@@ -10,6 +10,8 @@ export const DRONE_POINTS = 50;
 export const DOG_POINTS = 100;
 export const BOSS_HIT_POINTS = 100;
 export const BOSS_POINTS = 500;
+/** Bolts it takes to forge one mega bolt ball. */
+export const BOLTS_PER_MEGA = 10;
 export const BATTERY_MAX = 3;
 export const LIVES_START = 3;
 
@@ -24,6 +26,11 @@ export interface GameState {
 	respawns: number;
 	/** Level in progress, counted from 1 and never capped. */
 	level: number;
+	/** Keys of bosses beaten this run, so none repeats until the pool is spent. */
+	bossesSeen: string[];
+	/** Bolts gathered toward the next mega ball. */
+	bolts: number;
+	megaBalls: number;
 	/** `boss` means the gate was reached and the arena is on. */
 	status: "playing" | "boss" | "over";
 }
@@ -36,6 +43,9 @@ export function createState(): GameState {
 		lives: LIVES_START,
 		respawns: 0,
 		level: 1,
+		bossesSeen: [],
+		bolts: 0,
+		megaBalls: 0,
 		status: "playing",
 	};
 }
@@ -60,8 +70,16 @@ function pickUp(state: GameState, kind: PickupKind): GameState {
 	switch (kind) {
 		case "nut":
 			return { ...state, levelPoints: state.levelPoints + NUT_POINTS };
-		case "bolt":
-			return { ...state, levelPoints: state.levelPoints + BOLT_POINTS };
+		case "bolt": {
+			const bolts = state.bolts + 1;
+			const forged = bolts >= BOLTS_PER_MEGA;
+			return {
+				...state,
+				levelPoints: state.levelPoints + BOLT_POINTS,
+				bolts: forged ? 0 : bolts,
+				megaBalls: forged ? state.megaBalls + 1 : state.megaBalls,
+			};
+		}
 		case "gear":
 			return { ...state, levelPoints: state.levelPoints + GEAR_POINTS };
 		case "cell":
@@ -94,10 +112,13 @@ function applyEvent(state: GameState, event: GameEvent): GameState {
 				points: state.points + state.levelPoints + BOSS_POINTS,
 				levelPoints: 0,
 				level: state.level + 1,
+				bossesSeen: [...state.bossesSeen, event.boss],
 				battery: BATTERY_MAX,
 				status: "playing",
 			};
 		case "slam":
+		case "megaFired":
+			return { ...state, megaBalls: Math.max(0, state.megaBalls - 1) };
 		case "jump":
 		case "airjump":
 		case "pull":

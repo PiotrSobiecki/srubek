@@ -2,6 +2,7 @@ import {
 	applyEvents,
 	BATTERY_MAX,
 	BOLT_POINTS,
+	BOLTS_PER_MEGA,
 	BOSS_HIT_POINTS,
 	BOSS_POINTS,
 	createState,
@@ -83,7 +84,8 @@ describe("battery and lives", () => {
 		let s = applyEvents(createState(), [{ type: "gate" }, { type: "bossHit" }]);
 		expect(s.status).toBe("boss");
 		expect(s.levelPoints).toBe(BOSS_HIT_POINTS);
-		s = applyEvents(s, [{ type: "bossDown" }]);
+		s = applyEvents(s, [{ type: "bossDown", boss: "prasa/opad/rdzen" }]);
+		expect(s.bossesSeen).toEqual(["prasa/opad/rdzen"]);
 		expect(s.status).toBe("playing");
 		expect(s.level).toBe(2);
 		expect(s.levelPoints).toBe(0);
@@ -94,6 +96,15 @@ describe("battery and lives", () => {
 		const s = applyEvents(createState(), [{ type: "gate" }, { type: "fall" }]);
 		expect(s.status).toBe("boss");
 		expect(s.lives).toBe(LIVES_START - 1);
+	});
+
+	it("ten bolts forge a mega ball and firing spends it", () => {
+		let s = createState();
+		for (let i = 0; i < BOLTS_PER_MEGA; i++) s = applyEvents(s, [{ type: "pickup", kind: "bolt" }]);
+		expect(s.megaBalls).toBe(1);
+		expect(s.bolts).toBe(0);
+		s = applyEvents(s, [{ type: "megaFired" }]);
+		expect(s.megaBalls).toBe(0);
 	});
 
 	it("an extra life pickup adds a life", () => {
@@ -128,6 +139,9 @@ describe("battery and lives", () => {
 			lives: LIVES_START,
 			respawns: 0,
 			level: 1,
+			bossesSeen: [],
+			bolts: 0,
+			megaBalls: 0,
 			status: "playing",
 		});
 	});

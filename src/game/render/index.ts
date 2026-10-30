@@ -7,6 +7,7 @@
 import { type Boss, coreOpen } from "@/game/boss";
 import {
 	EFFECT_FRAMES,
+	MEGA_SIZE,
 	type Player,
 	type Press,
 	SCRAP_CAPACITY,
@@ -15,7 +16,7 @@ import {
 	type World,
 } from "@/game/engine";
 import { type Level, type PickupKind, type Theme, TILE } from "@/game/level";
-import { BATTERY_MAX, type GameState, totalPoints } from "@/game/state";
+import { BATTERY_MAX, BOLTS_PER_MEGA, type GameState, totalPoints } from "@/game/state";
 
 const SCALE = 2;
 
@@ -1125,6 +1126,31 @@ function drawScrap(ctx: Ctx, x: number, y: number, frame: number): void {
 }
 
 /** Carried pieces orbit above Śrubek's head, with a count once the pouch gets full. */
+/** The mega bolt ball: a spiked sphere of bolts, spinning and glowing. */
+function drawMega(ctx: Ctx, x: number, y: number, frame: number): void {
+	const cx = x + MEGA_SIZE / 2;
+	const cy = y + MEGA_SIZE / 2;
+	glow(ctx, cx, cy, MEGA_SIZE, "rgba(255,200,80,A)", 0.6);
+	ctx.save();
+	ctx.translate(cx, cy);
+	ctx.rotate(frame / 6);
+	for (let i = 0; i < 8; i++) {
+		const a = (i / 8) * Math.PI * 2;
+		ctx.save();
+		ctx.rotate(a);
+		rounded(ctx, 6, -2, 7, 4, 1);
+		ctx.fillStyle = shade(ctx, -2, 4, "#dfe7ee", "#5a646e");
+		ctx.fill();
+		outline(ctx, 0.5);
+		ctx.restore();
+	}
+	sphere(ctx, 0, 0, 8, "#ffe9a8", "#b8701a");
+	ctx.beginPath();
+	ctx.arc(0, 0, 8, 0, Math.PI * 2);
+	outline(ctx, 0.8);
+	ctx.restore();
+}
+
 function drawPouch(ctx: Ctx, world: World, camera: number): void {
 	const held = world.scraps.filter((s) => s.state === "held");
 	if (held.length === 0) return;
@@ -1171,7 +1197,7 @@ function drawCharger(ctx: Ctx, x: number, y: number, frame: number): void {
 // ── hud ──────────────────────────────────────────────────────────────
 
 function drawHud(ctx: Ctx, state: GameState, frame: number): void {
-	rounded(ctx, 5, 5, 196, 18, 6);
+	rounded(ctx, 5, 5, 262, 18, 6);
 	ctx.fillStyle = "rgba(10,8,20,0.55)";
 	ctx.fill();
 	ctx.strokeStyle = "rgba(255,255,255,0.18)";
@@ -1188,6 +1214,17 @@ function drawHud(ctx: Ctx, state: GameState, frame: number): void {
 	ctx.fillStyle = "#9aa3ad";
 	ctx.fillRect(100, 12.5, 2, 3);
 	fancyText(ctx, `POZ ${state.level}`, 160, 14.5, 11);
+	// Bolt stock toward the next mega ball, and the balls in hand.
+	drawBolt(ctx, 212, 14, 0.3);
+	fancyText(ctx, `${state.bolts}/${BOLTS_PER_MEGA}`, 219, 14.5, 10);
+	if (state.megaBalls > 0) {
+		ctx.save();
+		ctx.translate(246, 9);
+		ctx.scale(0.45, 0.45);
+		drawMega(ctx, 0, 0, frame);
+		ctx.restore();
+		fancyText(ctx, `x${state.megaBalls}`, 257, 14.5, 10);
+	}
 	for (let i = 0; i < Math.min(state.lives, 4); i++) {
 		const hx = 110 + i * 11;
 		ctx.fillStyle = "#ff5a5a";
@@ -1261,8 +1298,165 @@ function drawGate(ctx: Ctx, x: number, y: number, frame: number): void {
 	sphere(ctx, x + TILE / 2, y - 3, 2, "#fff0b0", "#d9901c");
 }
 
+const BOSS_NAMES: Record<Boss["spec"]["body"], string> = {
+	prasa: "PRASA-OLBRZYM",
+	"dron-matka": "DRON-MATKA",
+	"pies-alfa": "PIES-ALFA",
+	dzwig: "DŹWIG ZŁOMOWY",
+};
+
+function drawWeakSpot(ctx: Ctx, boss: Boss, cx: number, y: number, frame: number): void {
+	const open = coreOpen(boss);
+	if (open) glow(ctx, cx, y + 2, 16, "rgba(255,80,60,A)", 0.5 + Math.sin(frame / 4) * 0.2);
+	if (boss.spec.weakSpot === "antena") {
+		ctx.strokeStyle = "#3a3f49";
+		ctx.lineWidth = 1.5;
+		ctx.beginPath();
+		ctx.moveTo(cx, y + 4);
+		ctx.lineTo(cx, y - 6);
+		ctx.stroke();
+		sphere(ctx, cx, y - 7, 3, open ? "#fff0b0" : "#9aa3ad", open ? "#d8261b" : "#4a535d");
+		return;
+	}
+	ctx.beginPath();
+	ctx.arc(cx, y + 4, 7, Math.PI, 0);
+	ctx.closePath();
+	ctx.fillStyle = open ? "rgba(255,120,100,0.85)" : "#2b2f36";
+	ctx.fill();
+	outline(ctx, 0.8);
+	if (open) sphere(ctx, cx, y + 1, 3, "#fff0b0", "#d8261b");
+}
+
+function drawDroneMother(ctx: Ctx, boss: Boss, frame: number, x: number, y: number): void {
+	const cx = x + boss.w / 2;
+	const cy = y + boss.h / 2 + 2;
+	ctx.fillStyle = `rgba(220,230,240,${0.3 + (frame % 2) * 0.3})`;
+	for (const rx of [-16, 16]) {
+		ctx.beginPath();
+		ctx.ellipse(cx + rx, y + 2, 13, 2, 0, 0, Math.PI * 2);
+		ctx.fill();
+	}
+	ctx.fillStyle = "#3a3f49";
+	ctx.fillRect(cx - 24, y + 2, 48, 2.5);
+	sphere(ctx, cx, cy, boss.w / 2 - 2, "#b9c3cc", "#2f363d");
+	ctx.beginPath();
+	ctx.arc(cx, cy, boss.w / 2 - 2, 0, Math.PI * 2);
+	outline(ctx, 1);
+	rim(ctx, 0.4);
+	for (const [ex, ey] of [
+		[-7, -2],
+		[7, -2],
+		[0, 6],
+	] as const) {
+		glow(ctx, cx + ex, cy + ey, 5, "rgba(255,70,50,A)", 0.5);
+		sphere(ctx, cx + ex, cy + ey, 2.2, "#ffb0a0", "#c8231a");
+	}
+	// Hatch underneath where the babies come out.
+	ctx.fillStyle = "#1b1a22";
+	ctx.fillRect(cx - 6, y + boss.h - 4, 12, 3);
+	drawWeakSpot(ctx, boss, cx, y, frame);
+}
+
+function drawDogAlpha(ctx: Ctx, boss: Boss, frame: number, x: number, y: number): void {
+	ctx.save();
+	ctx.translate(x + boss.w / 2, y + boss.h);
+	ctx.scale(boss.dir, 1);
+	const w = boss.w;
+	const stride = boss.phase === "charge" ? Math.sin(frame / 2) * 5 : 0;
+	for (const [lx, s] of [
+		[-18, stride],
+		[-8, -stride],
+		[8, stride],
+		[18, -stride],
+	] as const) {
+		rounded(ctx, lx - 2.5 + s * 0.4, -10, 5, 10, 2);
+		ctx.fillStyle = shade(ctx, -10, 10, "#4d5661", "#1e2227");
+		ctx.fill();
+	}
+	ctx.beginPath();
+	ctx.ellipse(-2, -16, w / 2 - 4, 9, 0, 0, Math.PI * 2);
+	const body = ctx.createRadialGradient(-8, -22, 2, -2, -16, 26);
+	body.addColorStop(0, "#c3ccd5");
+	body.addColorStop(0.6, "#6f7a86");
+	body.addColorStop(1, "#2f363d");
+	ctx.fillStyle = body;
+	ctx.fill();
+	outline(ctx, 1);
+	rim(ctx, 0.4);
+	// Spiked back plates.
+	ctx.fillStyle = "#9a5a34";
+	for (let i = -3; i <= 2; i++) {
+		ctx.beginPath();
+		ctx.moveTo(i * 6 - 2, -24);
+		ctx.lineTo(i * 6 + 1, -31);
+		ctx.lineTo(i * 6 + 4, -24);
+		ctx.closePath();
+		ctx.fill();
+	}
+	// Head and jaws.
+	rounded(ctx, w / 2 - 12, -26, 16, 12, 4);
+	ctx.fillStyle = shade(ctx, -26, 12, "#aab3bc", "#3f4852");
+	ctx.fill();
+	outline(ctx, 1);
+	ctx.fillStyle = "#1b1a22";
+	ctx.fillRect(w / 2 - 8, -18, 12, 2);
+	glow(ctx, w / 2 - 2, -22, 5, "rgba(255,70,50,A)", 0.6);
+	sphere(ctx, w / 2 - 2, -22, 2.2, "#ffb0a0", "#c8231a");
+	ctx.restore();
+	drawWeakSpot(ctx, boss, x + boss.w / 2 - boss.dir * 4, y + 2, frame);
+}
+
+function drawCraneBoss(ctx: Ctx, boss: Boss, frame: number, x: number, y: number): void {
+	const cx = x + boss.w / 2;
+	// Trolley rail across the top and the cable down to the hook block.
+	ctx.fillStyle = "#3a3f49";
+	ctx.fillRect(0, 2, VIEW_W, 3);
+	rounded(ctx, cx - 10, 0, 20, 8, 2);
+	ctx.fillStyle = shade(ctx, 0, 8, "#aab3bc", "#4a535d");
+	ctx.fill();
+	ctx.strokeStyle = "#1b1a22";
+	ctx.lineWidth = 1.5;
+	ctx.beginPath();
+	ctx.moveTo(cx, 8);
+	ctx.lineTo(cx, y + 4);
+	ctx.stroke();
+	// Magnet block with a rusty face.
+	rounded(ctx, x, y + 4, boss.w, boss.h - 4, 4);
+	ctx.fillStyle = shade(ctx, y + 4, boss.h - 4, "#c2ccd5", "#3f4852");
+	ctx.fill();
+	outline(ctx, 1);
+	rim(ctx, 0.4);
+	ctx.fillStyle = "#9a5a34";
+	ctx.fillRect(x + 4, y + boss.h - 10, boss.w - 8, 4);
+	ctx.fillStyle = "#1b1a22";
+	ctx.fillRect(x, y + boss.h - 4, boss.w, 4);
+	for (let i = 0; i < boss.w / 8; i++) {
+		ctx.fillStyle = "#e9c136";
+		ctx.fillRect(x + i * 8 + 1, y + boss.h - 4, 4, 4);
+	}
+	drawWeakSpot(ctx, boss, cx, y, frame);
+}
+
 function drawBoss(ctx: Ctx, boss: Boss, frame: number, camera: number): void {
 	if (!boss.alive) return;
+	const bx = Math.round(boss.x - camera);
+	const by = Math.round(boss.y);
+	switch (boss.spec.body) {
+		case "dron-matka":
+			drawDroneMother(ctx, boss, frame, bx, by);
+			break;
+		case "pies-alfa":
+			drawDogAlpha(ctx, boss, frame, bx, by);
+			break;
+		case "dzwig":
+			drawCraneBoss(ctx, boss, frame, bx, by);
+			break;
+		default:
+			drawPressBoss(ctx, boss, frame, camera);
+	}
+}
+
+function drawPressBoss(ctx: Ctx, boss: Boss, frame: number, camera: number): void {
 	const x = Math.round(boss.x - camera);
 	const y = Math.round(boss.y);
 	// Twin pistons from above the screen down to the head.
@@ -1296,17 +1490,8 @@ function drawBoss(ctx: Ctx, boss: Boss, frame: number, camera: number): void {
 	] as const) {
 		sphere(ctx, x + rx, y + ry, 1.8, "#ffffff", "#6f7a86");
 	}
-	// Core on top: a glass dome, lit red when bare.
-	const open = coreOpen(boss);
 	const cx = x + boss.w / 2;
-	if (open) glow(ctx, cx, y + 2, 16, "rgba(255,80,60,A)", 0.5 + Math.sin(frame / 4) * 0.2);
-	ctx.beginPath();
-	ctx.arc(cx, y + 4, 7, Math.PI, 0);
-	ctx.closePath();
-	ctx.fillStyle = open ? "rgba(255,120,100,0.85)" : "#2b2f36";
-	ctx.fill();
-	outline(ctx, 0.8);
-	if (open) sphere(ctx, cx, y + 1, 3, "#fff0b0", "#d8261b");
+	drawWeakSpot(ctx, boss, cx, y, frame);
 	// Warning lamp while dropping.
 	if (boss.phase === "drop") glow(ctx, cx, y + boss.h, 24, "rgba(255,120,60,A)", 0.4);
 }
@@ -1322,7 +1507,7 @@ function drawBossBar(ctx: Ctx, boss: Boss): void {
 		ctx.fillStyle = i < boss.hp ? "#ff5a5a" : "#2b2f36";
 		ctx.fill();
 	}
-	fancyText(ctx, "PRASA-OLBRZYM", VIEW_W / 2, 23, 10, "center");
+	fancyText(ctx, BOSS_NAMES[boss.spec.body], VIEW_W / 2, 23, 10, "center");
 }
 
 function drawPickups(ctx: Ctx, world: World, camera: number): void {
@@ -1334,6 +1519,16 @@ function drawPickups(ctx: Ctx, world: World, camera: number): void {
 	}
 }
 
+function drawProjectiles(ctx: Ctx, world: World, camera: number): void {
+	const frame = world.frame;
+	for (const s of world.scraps) {
+		if (s.state === "ground" || s.state === "thrown") drawScrap(ctx, s.x - camera, s.y, frame);
+	}
+	for (const m of world.megas) drawMega(ctx, m.x - camera, m.y, frame);
+	for (const s of world.shots) drawScrap(ctx, s.x - camera, s.y, frame * 3);
+	drawPouch(ctx, world, camera);
+}
+
 function drawActors(ctx: Ctx, world: World, camera: number): void {
 	if (world.boss) drawBoss(ctx, world.boss, world.frame, camera);
 	const frame = world.frame;
@@ -1341,8 +1536,7 @@ function drawActors(ctx: Ctx, world: World, camera: number): void {
 	for (const g of world.level.gates) drawGate(ctx, g.x * TILE - camera, (g.y - 2) * TILE, frame);
 	for (const p of world.presses) drawPress(ctx, p, camera);
 	drawPickups(ctx, world, camera);
-	for (const s of world.scraps) if (s.state !== "held") drawScrap(ctx, s.x - camera, s.y, frame);
-	drawPouch(ctx, world, camera);
+	drawProjectiles(ctx, world, camera);
 	for (const d of world.dogs) if (d.alive) drawDog(ctx, d.x - camera, d.y, d.dir, frame);
 	for (const d of world.drones) if (d.alive) drawDrone(ctx, d.x - camera, d.y, d.dir, frame);
 	drawSrubek(ctx, world.player, frame, camera);

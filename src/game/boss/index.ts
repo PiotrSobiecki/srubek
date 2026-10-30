@@ -14,8 +14,21 @@ export type BossBody =
 	| "dzwig"
 	| "koparka"
 	| "zgniatarka"
-	| "wieza";
-export type BossAttack = "opad" | "drony" | "szarza" | "strzal" | "zamach" | "zgniot" | "laser";
+	| "wieza"
+	| "magnes"
+	| "roj"
+	| "waz";
+export type BossAttack =
+	| "opad"
+	| "drony"
+	| "szarza"
+	| "strzal"
+	| "zamach"
+	| "zgniot"
+	| "laser"
+	| "przyciag"
+	| "chmura"
+	| "pelzanie";
 export type BossWeakSpot = "rdzen" | "antena" | "grzbiet";
 
 export interface BossSpec {
@@ -46,7 +59,10 @@ type BossPhase =
 	| "dip"
 	| "sweep"
 	| "slide"
-	| "beam";
+	| "beam"
+	| "pull"
+	| "scatter"
+	| "crawl";
 
 export interface Boss {
 	spec: BossSpec;
@@ -76,10 +92,13 @@ const BODIES: Record<BossBody, { attacks: BossAttack[]; weakSpots: BossWeakSpot[
 	koparka: { attacks: ["zamach", "strzal"], weakSpots: ["rdzen"] },
 	zgniatarka: { attacks: ["zgniot", "opad"], weakSpots: ["grzbiet"] },
 	wieza: { attacks: ["laser", "drony"], weakSpots: ["antena"] },
+	magnes: { attacks: ["przyciag", "strzal"], weakSpots: ["rdzen"] },
+	roj: { attacks: ["chmura", "drony"], weakSpots: ["antena"] },
+	waz: { attacks: ["pelzanie", "szarza"], weakSpots: ["grzbiet"] },
 };
 
 /** Bodies that live on the arena floor instead of hovering. */
-const GROUNDED: readonly BossBody[] = ["pies-alfa", "koparka", "wieza"];
+const GROUNDED: readonly BossBody[] = ["pies-alfa", "koparka", "wieza", "waz"];
 
 function grounded(spec: BossSpec): boolean {
 	return GROUNDED.includes(spec.body);
@@ -145,6 +164,9 @@ const SIZES: Record<BossBody, { w: number; h: number }> = {
 	koparka: { w: 60, h: 34 },
 	zgniatarka: { w: 52, h: 30 },
 	wieza: { w: 30, h: 60 },
+	magnes: { w: 40, h: 30 },
+	roj: { w: 48, h: 36 },
+	waz: { w: 72, h: 22 },
 };
 
 export function createBoss(spec: BossSpec, arenaWidthTiles: number): Boss {
@@ -219,6 +241,19 @@ function track(boss: Boss, world: World): void {
 			break;
 		case "laser":
 			boss.phase = "beam";
+			boss.aux = 0;
+			break;
+		case "przyciag":
+			boss.phase = "pull";
+			boss.timer = 80;
+			boss.ammo = 3;
+			break;
+		case "chmura":
+			boss.phase = "scatter";
+			boss.aux = 0;
+			break;
+		case "pelzanie":
+			boss.phase = "crawl";
 			boss.aux = 0;
 			break;
 	}
@@ -321,6 +356,10 @@ function waitOnGround(boss: Boss, world: World): void {
 			boss.phase = "beam";
 			boss.aux = 0;
 			break;
+		case "pelzanie":
+			boss.phase = "crawl";
+			boss.aux = 0;
+			break;
 		default:
 			boss.phase = "volley";
 			boss.ammo = boss.spec.attack === "drony" ? 2 : 3;
@@ -406,12 +445,92 @@ function beam(boss: Boss, world: World, events: GameEvent[]): void {
 	boss.timer = boss.spec.openFrames;
 }
 
+/** The crane magnet drags Śrubek toward itself while dropping scrap on him. */
+function pull(boss: Boss, world: World, events: GameEvent[]): void {
+	const p = world.player;
+	const cx = boss.x + boss.w / 2;
+	const dx = cx - (p.x + p.w / 2);
+	// Stronger than ground friction, so the drag wins when Śrubek stands still.
+	p.vx += Math.sign(dx) * 0.35;
+	if (boss.timer % 25 === 0 && boss.ammo > 0) {
+		boss.ammo -= 1;
+		world.shots.push({ x: cx - 4, y: boss.y + boss.h, vx: 0, vy: 1 });
+		events.push({ type: "throw" });
+	}
+	if (boss.timer-- > 0) return;
+	boss.phase = "cool";
+	boss.timer = boss.spec.openFrames;
+}
+
+/** Where the swarm's drones hang around the core: spread out mid-attack, tight otherwise. */
+export function swarmOffsets(boss: Boss, frame: number): { x: number; y: number }[] {
+	const spread = boss.phase === "scatter" ? Math.sin(boss.aux * Math.PI) : 0;
+	const out = [];
+	for (let i = 0; i < 8; i++) {
+		const a = (i / 8) * Math.PI * 2 + frame / 30;
+		const r = 14 + spread * 70;
+		// Spread drones sink toward the floor so a grounded Śrubek has to dodge.
+		out.push({ x: Math.cos(a) * r, y: Math.sin(a) * r * 0.6 + spread * 150 });
+	}
+	return out;
+}
+
+function scatter(boss: Boss, world: World, events: GameEvent[]): void {
+	boss.aux = Math.min(1, boss.aux + 1 / 90);
+	const p = world.player;
+	const cx = boss.x + boss.w / 2;
+	const cy = boss.y + boss.h / 2;
+	for (const o of swarmOffsets(boss, world.frame)) {
+		const dx = cx + o.x;
+		const dy = cy + o.y;
+		if (p.x < dx + 5 && p.x + p.w > dx - 5 && p.y < dy + 5 && p.y + p.h > dy - 5) {
+			hurt(p, dx, events);
+		}
+	}
+	if (boss.aux < 1) return;
+	boss.phase = "dip";
+	boss.timer = boss.spec.openFrames;
+}
+
+/** The conveyor snake crawls the floor toward Śrubek, hopping over him when close. */
+function crawl(boss: Boss, world: World, events: GameEvent[]): void {
+	const p = world.player;
+	boss.aux += 1 / 110;
+	boss.x += boss.dir * boss.spec.chargeSpeed * 0.6;
+	const left = TILE;
+	const right = arenaWidth(world) - TILE - boss.w;
+	if (boss.x <= left || boss.x >= right) boss.dir = boss.dir > 0 ? -1 : 1;
+	boss.x = Math.max(left, Math.min(right, boss.x));
+	// Hop arc on the second half of the crawl.
+	const hop = boss.aux > 0.5 ? Math.sin((boss.aux - 0.5) * 2 * Math.PI) * 50 : 0;
+	boss.y = boss.floorY - Math.max(0, hop);
+	if (p.x < boss.x + boss.w && p.x + p.w > boss.x && p.y < boss.y + boss.h && p.y + p.h > boss.y) {
+		hurt(p, boss.x + boss.w / 2, events);
+	}
+	if (boss.aux < 1) return;
+	boss.y = boss.floorY;
+	boss.phase = "stun";
+	boss.timer = boss.spec.openFrames;
+	world.effects.push({
+		kind: "quake",
+		x: boss.x + boss.w / 2,
+		y: boss.y + boss.h,
+		frame: world.frame,
+	});
+	events.push({ type: "slam" });
+}
+
 function touch(boss: Boss, world: World, events: GameEvent[]): void {
 	const p = world.player;
 	const overlapping =
 		p.x < boss.x + boss.w && p.x + p.w > boss.x && p.y < boss.y + boss.h && p.y + p.h > boss.y;
 	if (!overlapping) return;
-	if (boss.phase === "drop" || boss.phase === "charge" || boss.phase === "slide") {
+	if (
+		boss.phase === "drop" ||
+		boss.phase === "charge" ||
+		boss.phase === "slide" ||
+		boss.phase === "crawl"
+	) {
 		hurt(p, boss.x + boss.w / 2, events);
 		return;
 	}
@@ -480,6 +599,15 @@ export function stepBoss(world: World, events: GameEvent[]): void {
 			break;
 		case "beam":
 			beam(boss, world, events);
+			break;
+		case "pull":
+			pull(boss, world, events);
+			break;
+		case "scatter":
+			scatter(boss, world, events);
+			break;
+		case "crawl":
+			crawl(boss, world, events);
 			break;
 		case "rise":
 			rise(boss);

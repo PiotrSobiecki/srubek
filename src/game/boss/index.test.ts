@@ -49,14 +49,21 @@ function openUp(world: World, boss: Boss): void {
 }
 
 describe("the pool", () => {
-	it("holds only allowed body–attack pairs and at least seven triples", () => {
+	it("holds only allowed body–attack pairs and all ten bodies", () => {
 		const pool = bossPool();
-		expect(pool.length).toBeGreaterThanOrEqual(13);
+		expect(pool.length).toBeGreaterThanOrEqual(19);
+		expect(new Set(pool.map(([b]) => b)).size).toBe(10);
+		const only: Partial<Record<BossAttack, BossBody[]>> = {
+			szarza: ["pies-alfa", "waz"],
+			drony: ["dron-matka", "wieza", "roj"],
+			laser: ["wieza"],
+			zamach: ["koparka"],
+			przyciag: ["magnes"],
+			pelzanie: ["waz"],
+		};
 		for (const [body, attack] of pool) {
-			if (body === "pies-alfa") expect(attack).toBe("szarza");
-			if (attack === "drony") expect(["dron-matka", "wieza"]).toContain(body);
-			if (attack === "laser") expect(body).toBe("wieza");
-			if (attack === "zamach") expect(body).toBe("koparka");
+			const allowed = only[attack];
+			if (allowed) expect(allowed).toContain(body);
 		}
 	});
 
@@ -265,5 +272,51 @@ describe("wieża / laser", () => {
 		expect(hit).toBe(true);
 		openUp(world, boss);
 		expect(boss.phase).toBe("cool");
+	});
+});
+
+describe("magnes / przyciag", () => {
+	it("drags Śrubek toward itself and drops scrap, then cools", () => {
+		const [world, boss] = arena("magnes", "przyciag", "rdzen");
+		const p = world.player;
+		p.x = boss.x - 120;
+		p.y = boss.floorY + boss.h - p.h;
+		const startX = p.x;
+		let dropped = 0;
+		for (let i = 0; i < 400 && !coreOpen(boss); i++) {
+			dropped += step(world, IDLE).filter((e) => e.type === "throw").length;
+		}
+		expect(p.x).toBeGreaterThan(startX);
+		expect(dropped).toBeGreaterThan(0);
+		expect(boss.phase).toBe("cool");
+	});
+});
+
+describe("rój / chmura", () => {
+	it("spreads its drones wide, hurting on contact, then dips", () => {
+		const [world, boss] = arena("roj", "chmura", "antena");
+		world.player.x = boss.x + boss.w / 2 - world.player.w / 2 + 50;
+		world.player.y = boss.floorY + boss.h - world.player.h;
+		let hit = false;
+		for (let i = 0; i < 400 && !hit; i++) hit = step(world, IDLE).some((e) => e.type === "hit");
+		expect(hit).toBe(true);
+		openUp(world, boss);
+		expect(boss.phase).toBe("dip");
+	});
+});
+
+describe("wąż / pełzanie", () => {
+	it("crawls along the floor, hops and then stuns with its back bare", () => {
+		const [world, boss] = arena("waz", "pelzanie", "grzbiet");
+		expect(boss.y).toBe(boss.floorY);
+		world.player.x = 400;
+		let lifted = false;
+		for (let i = 0; i < 600 && !coreOpen(boss); i++) {
+			step(world, IDLE);
+			if (boss.y < boss.floorY) lifted = true;
+		}
+		expect(lifted).toBe(true);
+		expect(boss.phase).toBe("stun");
+		expect(boss.y).toBe(boss.floorY);
 	});
 });

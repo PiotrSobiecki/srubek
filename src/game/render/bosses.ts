@@ -1,9 +1,9 @@
 /**
- * The four boss bodies, each with its own palette, silhouette and idle
+ * The boss bodies, each with its own palette, silhouette and idle
  * motion. Positions come from the boss object; everything else is drawn here.
  */
 
-import { type Boss, beamEnd, bucketBox, coreOpen } from "@/game/boss";
+import { type Boss, beamEnd, bucketBox, coreOpen, swarmOffsets } from "@/game/boss";
 import type { World } from "@/game/engine";
 import { VIEW_W } from "@/game/engine";
 import {
@@ -29,6 +29,9 @@ export const BOSS_NAMES: Record<Boss["spec"]["body"], string> = {
 	koparka: "KOPARKA",
 	zgniatarka: "ZGNIATARKA",
 	wieza: "WIEŻA STRAŻNICZA",
+	magnes: "MAGNES DŹWIGOWY",
+	roj: "RÓJ DRONÓW",
+	waz: "TAŚMOCIĄG-WĄŻ",
 };
 
 /** The weak spot: a glass dome, an antenna bulb or a back vent, red when bare. */
@@ -630,6 +633,184 @@ function drawTower(ctx: Ctx, boss: Boss, world: World, frame: number, x: number,
 	drawWeakSpot(ctx, boss, cx, y - 2, frame);
 }
 
+// ── magnes dźwigowy: purple electromagnet on a boom, field lines when pulling ──
+
+function drawMagnet(ctx: Ctx, boss: Boss, world: World, frame: number, x: number, y: number): void {
+	const w = boss.w;
+	const h = boss.h;
+	const cx = x + w / 2;
+	// Boom across the top on a pivot, cable down.
+	ctx.fillStyle = "#5a3a7a";
+	ctx.fillRect(0, 3, VIEW_W, 4);
+	ctx.strokeStyle = "#2e1a44";
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	for (let bx = 0; bx < VIEW_W; bx += 12) {
+		ctx.moveTo(bx, 3);
+		ctx.lineTo(bx + 6, 11);
+		ctx.lineTo(bx + 12, 3);
+	}
+	ctx.stroke();
+	ctx.fillStyle = "#5a3a7a";
+	ctx.fillRect(0, 11, VIEW_W, 2);
+	ctx.strokeStyle = "#2b2f36";
+	ctx.lineWidth = 2.5;
+	ctx.beginPath();
+	ctx.moveTo(cx, 13);
+	ctx.lineTo(cx, y + 4);
+	ctx.stroke();
+	// Horseshoe magnet body.
+	ctx.beginPath();
+	ctx.arc(cx, y + 12, w / 2, Math.PI, 0);
+	ctx.lineTo(cx + w / 2, y + h);
+	ctx.lineTo(cx + w / 2 - 12, y + h);
+	ctx.lineTo(cx + w / 2 - 12, y + 14);
+	ctx.arc(cx, y + 12, w / 2 - 12, 0, Math.PI, true);
+	ctx.lineTo(cx - w / 2 + 12, y + h);
+	ctx.lineTo(cx - w / 2, y + h);
+	ctx.closePath();
+	const g = ctx.createLinearGradient(x, 0, x + w, 0);
+	g.addColorStop(0, "#c33b6a");
+	g.addColorStop(0.5, "#ff6f9c");
+	g.addColorStop(1, "#8a1f45");
+	ctx.fillStyle = g;
+	ctx.fill();
+	outline(ctx, 1.1);
+	rim(ctx, 0.4);
+	// Silver pole tips.
+	for (const side of [-1, 1]) {
+		rounded(ctx, cx + side * (w / 2 - 6) - 6, y + h - 7, 12, 7, 1.5);
+		ctx.fillStyle = shade(ctx, y + h - 7, 7, "#e6ecf1", "#6a7682");
+		ctx.fill();
+		outline(ctx, 0.9);
+	}
+	// Coil windings.
+	ctx.strokeStyle = "rgba(255,255,255,0.35)";
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	for (let i = 0; i < 5; i++) {
+		ctx.moveTo(cx - w / 2 + 2, y + 16 + i * 3);
+		ctx.lineTo(cx - w / 2 + 10, y + 16 + i * 3);
+		ctx.moveTo(cx + w / 2 - 10, y + 16 + i * 3);
+		ctx.lineTo(cx + w / 2 - 2, y + 16 + i * 3);
+	}
+	ctx.stroke();
+	// Field lines toward Śrubek while pulling.
+	if (boss.phase === "pull") {
+		const p = world.player;
+		const px = p.x + p.w / 2 - (world.camera | 0);
+		const py = p.y + p.h / 2;
+		for (let i = 0; i < 4; i++) {
+			const k = (frame / 12 + i / 4) % 1;
+			const fx = px + (cx - px) * k;
+			const fy = py + (y + h - py) * k;
+			glow(ctx, fx, fy, 5, "rgba(255,120,200,A)", 0.7 * (1 - k));
+		}
+		glow(ctx, cx, y + h, 24, "rgba(255,120,200,A)", 0.4 + Math.sin(frame / 4) * 0.15);
+	}
+	drawWeakSpot(ctx, boss, cx, y - 4, frame);
+}
+
+// ── rój dronów: a core with eight drones orbiting it ─────────────────
+
+function drawSwarm(ctx: Ctx, boss: Boss, frame: number, x: number, y: number): void {
+	const cx = x + boss.w / 2;
+	const cy = y + boss.h / 2;
+	// Core: a cracked glass orb with a yellow reactor.
+	glow(ctx, cx, cy, 22, "rgba(255,220,80,A)", 0.3 + Math.sin(frame / 6) * 0.1);
+	sphere(ctx, cx, cy, 11, "#fff3b0", "#b8860b");
+	ctx.beginPath();
+	ctx.arc(cx, cy, 11, 0, Math.PI * 2);
+	outline(ctx, 1);
+	ctx.strokeStyle = "rgba(60,40,0,0.5)";
+	ctx.lineWidth = 0.8;
+	ctx.beginPath();
+	ctx.moveTo(cx - 6, cy - 8);
+	ctx.lineTo(cx - 2, cy - 2);
+	ctx.lineTo(cx - 5, cy + 4);
+	ctx.stroke();
+	ctx.fillStyle = "#3a3f49";
+	ctx.fillRect(cx - 4, cy - 15, 8, 5);
+	// Drones around it.
+	for (const o of swarmOffsets(boss, frame)) {
+		const dx = cx + o.x;
+		const dy = cy + o.y;
+		ctx.fillStyle = `rgba(255,240,180,${0.3 + (frame % 2) * 0.3})`;
+		ctx.beginPath();
+		ctx.ellipse(dx, dy - 4, 5, 1.2, 0, 0, Math.PI * 2);
+		ctx.fill();
+		sphere(ctx, dx, dy, 4, "#f2d04a", "#7a5a10");
+		ctx.beginPath();
+		ctx.arc(dx, dy, 4, 0, Math.PI * 2);
+		outline(ctx, 0.7);
+		sphere(ctx, dx + 1, dy, 1.3, "#ffb0a0", "#c8231a");
+		if (boss.phase === "scatter") glow(ctx, dx, dy, 7, "rgba(255,80,60,A)", 0.4);
+	}
+	drawWeakSpot(ctx, boss, cx, cy - 16, frame);
+}
+
+// ── taśmociąg-wąż: segmented conveyor snake on the floor ─────────────
+
+function drawSnake(ctx: Ctx, boss: Boss, frame: number, x: number, y: number): void {
+	const w = boss.w;
+	const h = boss.h;
+	const floor = boss.floorY + h;
+	ctx.fillStyle = "rgba(0,0,0,0.3)";
+	ctx.beginPath();
+	ctx.ellipse(x + w / 2, floor + 1, w / 2, 3, 0, 0, Math.PI * 2);
+	ctx.fill();
+	const segs = 6;
+	const segW = w / segs;
+	const crawling = boss.phase === "crawl";
+	// Segments from tail to head so the head overlaps.
+	for (let i = 0; i < segs; i++) {
+		const idx = boss.dir > 0 ? i : segs - 1 - i;
+		const sx = x + idx * segW;
+		const wave = crawling ? Math.sin(frame / 4 + i * 0.9) * 3 : Math.sin(frame / 20 + i) * 0.8;
+		const sy = y + 4 + wave;
+		rounded(ctx, sx + 1, sy, segW - 2, h - 6, 4);
+		ctx.fillStyle = shade(ctx, sy, h - 6, i % 2 ? "#6fa8dc" : "#3d6e9e", "#17304d");
+		ctx.fill();
+		outline(ctx, 1);
+		rim(ctx, 0.3);
+		// Conveyor belt rollers along the belly, rolling.
+		ctx.fillStyle = "#1e2227";
+		ctx.fillRect(sx + 2, sy + h - 10, segW - 4, 4);
+		const roll = (frame / 2) % 4;
+		ctx.fillStyle = "#8d939b";
+		for (let r = 0; r < (segW - 4) / 4; r++)
+			ctx.fillRect(sx + 2 + r * 4 + roll - 2, sy + h - 9, 1.5, 2);
+	}
+	// Head: wedge with a lamp eye and a grinder mouth.
+	const hx = boss.dir > 0 ? x + w - segW : x;
+	const hy = y + 4 + (crawling ? Math.sin(frame / 4 + segs * 0.9) * 3 : 0);
+	ctx.save();
+	ctx.translate(hx + segW / 2, hy + (h - 6) / 2);
+	ctx.scale(boss.dir, 1);
+	ctx.beginPath();
+	ctx.moveTo(-segW / 2, -(h - 6) / 2);
+	ctx.lineTo(segW / 2 + 8, -2);
+	ctx.lineTo(segW / 2 + 8, 2);
+	ctx.lineTo(-segW / 2, (h - 6) / 2);
+	ctx.closePath();
+	ctx.fillStyle = shade(ctx, -(h - 6) / 2, h - 6, "#8fc1ea", "#17304d");
+	ctx.fill();
+	outline(ctx, 1);
+	glow(ctx, 2, -3, 6, "rgba(255,70,50,A)", 0.6);
+	sphere(ctx, 2, -3, 2.4, "#ffb0a0", "#c8231a");
+	ctx.fillStyle = "#e6ecf1";
+	for (let i = 0; i < 3; i++) {
+		ctx.beginPath();
+		ctx.moveTo(segW / 2 - 2 + i * 3, 3);
+		ctx.lineTo(segW / 2 - 0.5 + i * 3, 6);
+		ctx.lineTo(segW / 2 + 1 + i * 3, 3);
+		ctx.closePath();
+		ctx.fill();
+	}
+	ctx.restore();
+	drawWeakSpot(ctx, boss, x + w / 2, y - 2, frame);
+}
+
 export function drawBoss(ctx: Ctx, boss: Boss, frame: number, camera: number, world: World): void {
 	if (!boss.alive) return;
 	const bx = Math.round(boss.x - camera);
@@ -652,6 +833,15 @@ export function drawBoss(ctx: Ctx, boss: Boss, frame: number, camera: number, wo
 			break;
 		case "wieza":
 			drawTower(ctx, boss, world, frame, bx, by);
+			break;
+		case "magnes":
+			drawMagnet(ctx, boss, world, frame, bx, by);
+			break;
+		case "roj":
+			drawSwarm(ctx, boss, frame, bx, by);
+			break;
+		case "waz":
+			drawSnake(ctx, boss, frame, bx, by);
 			break;
 		default:
 			drawPress(ctx, boss, frame, bx, by);

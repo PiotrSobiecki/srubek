@@ -1,7 +1,7 @@
 import { buildLevel, levelFromRows, ROWS, TILE } from "@/game/level";
 import { createWorld, type Input, step, type World } from "./index";
 
-const IDLE: Input = { left: false, right: false, jump: false };
+const IDLE: Input = { left: false, right: false, jump: false, magnet: false };
 
 // 20 tiles wide, wall on the right edge comes from the grid border.
 const FLAT = levelFromRows([
@@ -214,5 +214,82 @@ describe("air jump", () => {
 		const events = [];
 		for (let i = 0; i < 120; i++) events.push(...step(world, IDLE));
 		expect(events).toContainEqual({ type: "fall" });
+	});
+});
+
+describe("magnet and dog-machine", () => {
+	// Scrap next to Śrubek, dog 10 tiles right, another scrap far away.
+	const YARD = levelFromRows([
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"..P.s.......w.....s.",
+		"####################",
+	]);
+	const MAGNET: Input = { ...IDLE, magnet: true };
+
+	function tap(world: World, input: Input): void {
+		step(world, input);
+		step(world, IDLE);
+	}
+
+	it("pulls the nearest scrap in range and leaves the far one alone", () => {
+		const world = createWorld(YARD);
+		settle(world);
+		tap(world, MAGNET);
+		const states = world.scraps.map((s) => s.state);
+		expect(states).toEqual(["held", "ground"]);
+		const held = world.scraps[0];
+		if (!held) throw new Error("no scrap");
+		expect(held.y).toBeLessThan(world.player.y);
+	});
+
+	it("does nothing when no scrap is in range", () => {
+		const world = createWorld(YARD);
+		world.scraps[0]?.state === "ground" && world.scraps.shift();
+		settle(world);
+		tap(world, MAGNET);
+		expect(world.scraps.every((s) => s.state === "ground")).toBe(true);
+	});
+
+	it("throws the held scrap into the dog, which dies for points", () => {
+		const world = createWorld(YARD);
+		settle(world);
+		tap(world, MAGNET);
+		const events = [];
+		tap(world, MAGNET);
+		for (let i = 0; i < 90; i++) events.push(...step(world, IDLE));
+		expect(events).toContainEqual({ type: "dog" });
+		expect(world.dogs[0]?.alive).toBe(false);
+		expect(world.scraps[0]?.state).toBe("ground");
+	});
+
+	it("hurts Śrubek when stomped instead of dying, and walks its platform", () => {
+		const world = createWorld(YARD);
+		const dog = world.dogs[0];
+		if (!dog) throw new Error("no dog");
+		settle(world);
+		const startX = dog.x;
+		run(world, IDLE, 60);
+		expect(dog.x).not.toBe(startX);
+		expect(dog.alive).toBe(true);
+		world.player.x = Math.round(dog.x) + 2;
+		world.player.y = dog.y - world.player.h - 2;
+		world.player.vy = 2;
+		const events = [];
+		for (let i = 0; i < 10; i++) events.push(...step(world, IDLE));
+		expect(events).toContainEqual({ type: "hit" });
+		expect(dog.alive).toBe(true);
+	});
+
+	it("level 1 puts scrap in front of every dog", () => {
+		const level = buildLevel(1);
+		expect(level.dogs.length).toBeGreaterThanOrEqual(1);
+		for (const dog of level.dogs) {
+			expect(level.scraps.some((s) => s.x < dog.x && dog.x - s.x < 40)).toBe(true);
+		}
 	});
 });

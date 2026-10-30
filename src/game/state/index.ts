@@ -4,6 +4,7 @@ import type { GameEvent } from "@/game/engine";
 
 export const NUT_POINTS = 10;
 export const DRONE_POINTS = 50;
+export const DOG_POINTS = 100;
 export const BATTERY_MAX = 3;
 export const LIVES_START = 3;
 
@@ -52,6 +53,8 @@ function applyEvent(state: GameState, event: GameEvent): GameState {
 			return { ...state, levelPoints: state.levelPoints + NUT_POINTS };
 		case "drone":
 			return { ...state, levelPoints: state.levelPoints + DRONE_POINTS };
+		case "dog":
+			return { ...state, levelPoints: state.levelPoints + DOG_POINTS };
 		case "charge":
 			return { ...state, battery: BATTERY_MAX };
 		case "fall":

@@ -2,6 +2,7 @@ import {
 	applyEvents,
 	BATTERY_MAX,
 	createState,
+	DOG_POINTS,
 	DRONE_POINTS,
 	LIVES_START,
 	NUT_POINTS,
@@ -15,8 +16,13 @@ describe("points", () => {
 
 	it("grow per nut and per drone without mutating the previous state", () => {
 		const before = createState();
-		const after = applyEvents(before, [{ type: "nut" }, { type: "nut" }, { type: "drone" }]);
-		expect(totalPoints(after)).toBe(2 * NUT_POINTS + DRONE_POINTS);
+		const after = applyEvents(before, [
+			{ type: "nut" },
+			{ type: "nut" },
+			{ type: "drone" },
+			{ type: "dog" },
+		]);
+		expect(totalPoints(after)).toBe(2 * NUT_POINTS + DRONE_POINTS + DOG_POINTS);
 		expect(totalPoints(before)).toBe(0);
 	});
 });

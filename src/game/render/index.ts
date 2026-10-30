@@ -155,6 +155,43 @@ const CHARGER: Pixels = [
 	"..nnnnnnnnnnnn..",
 ];
 
+const SCRAP: Pixels = [
+	".kk..kk.",
+	"kkkkkkkk",
+	".kknnkk.",
+	"kkn..nkk",
+	"kkn..nkk",
+	".kknnkk.",
+	"kkkkkkkk",
+	".kk..kk.",
+];
+
+const DOG_1: Pixels = [
+	"...........a....",
+	"aa........aaa...",
+	"aaannnnnnnneann.",
+	".annnrnnnnnnnna.",
+	".annnnnnnnnnnaa.",
+	"..aannnnnnnnaa..",
+	"...aa.aa.aa.aa..",
+	"...a..a...a..a..",
+	"..a...a....a..a.",
+	".aa..aa....aa.aa",
+];
+
+const DOG_2: Pixels = [
+	"...........a....",
+	"aa........aaa...",
+	"aaannnnnnnneann.",
+	".annnrnnnnnnnna.",
+	".annnnnnnnnnnaa.",
+	"..aannnnnnnnaa..",
+	"...aa.aa.aa.aa..",
+	"....a.a...a.a...",
+	"....a..a..a..a..",
+	"...aa..aa.aa..aa",
+];
+
 const HEART: Pixels = [".rr.rr.", "rrrrrrr", "rrrrrrr", ".rrrrr.", "..rrr..", "...r..."];
 
 function bake(pixels: Pixels): HTMLCanvasElement {
@@ -230,6 +267,8 @@ interface Sprites {
 	jump: HTMLCanvasElement;
 	nut: HTMLCanvasElement;
 	drone: HTMLCanvasElement[];
+	scrap: HTMLCanvasElement;
+	dog: HTMLCanvasElement[];
 	charger: HTMLCanvasElement;
 	heart: HTMLCanvasElement;
 	ground: HTMLCanvasElement[];
@@ -243,11 +282,41 @@ function bakeAll(): Sprites {
 		jump: bake(SRUBEK_JUMP),
 		nut: bake(NUT),
 		drone: [bake(DRONE_1), bake(DRONE_2)],
+		scrap: bake(SCRAP),
+		dog: [bake(DOG_1), bake(DOG_2)],
 		charger: bake(CHARGER),
 		heart: bake(HEART),
 		ground: [bakeGround(1), bakeGround(2), bakeGround(3)],
 		plate: bakePlate(),
 	};
+}
+
+function drawDogs(ctx: CanvasRenderingContext2D, world: World, s: Sprites, camera: number): void {
+	const sprite = s.dog[Math.floor(world.frame / 8) % 2] ?? s.charger;
+	for (const d of world.dogs) {
+		if (!d.alive) continue;
+		ctx.save();
+		if (d.dir > 0) {
+			ctx.translate(Math.round(d.x - camera) + d.w, Math.round(d.y));
+			ctx.scale(-1, 1);
+			ctx.drawImage(sprite, 0, 0);
+		} else {
+			ctx.drawImage(sprite, Math.round(d.x - camera), Math.round(d.y));
+		}
+		ctx.restore();
+	}
+}
+
+function drawScraps(ctx: CanvasRenderingContext2D, world: World, s: Sprites, camera: number): void {
+	for (const sc of world.scraps) {
+		ctx.drawImage(s.scrap, Math.round(sc.x - camera), Math.round(sc.y));
+	}
+	// Magnet glow around a held piece.
+	const held = world.scraps.find((sc) => sc.state === "held");
+	if (held) {
+		ctx.strokeStyle = world.frame % 8 < 4 ? "#4ff0e0" : "#2a8f88";
+		ctx.strokeRect(Math.round(held.x - camera) - 1.5, Math.round(held.y) - 1.5, 11, 11);
+	}
 }
 
 function drawDrones(ctx: CanvasRenderingContext2D, world: World, s: Sprites, camera: number): void {
@@ -394,6 +463,8 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		for (const c of world.level.chargers) {
 			ctx.drawImage(sprites.charger, c.x * TILE - camera, c.y * TILE);
 		}
+		drawScraps(ctx, world, sprites, camera);
+		drawDogs(ctx, world, sprites, camera);
 		drawDrones(ctx, world, sprites, camera);
 		drawPlayer(ctx, world.player, world.frame, sprites, camera);
 		drawHud(ctx, state, sprites);

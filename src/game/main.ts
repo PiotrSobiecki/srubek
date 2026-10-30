@@ -15,11 +15,19 @@ const KEYS: Record<string, keyof Input> = {
 	Space: "jump",
 	ArrowUp: "jump",
 	KeyW: "jump",
+	KeyE: "magnet",
+	KeyX: "magnet",
+	ShiftLeft: "magnet",
+	ArrowDown: "magnet",
+	KeyS: "magnet",
 };
 
 export function start(canvas: HTMLCanvasElement): void {
-	const input: Input = { left: false, right: false, jump: false };
+	const input: Input = { left: false, right: false, jump: false, magnet: false };
 	const level = buildLevel(1);
+	// ?x=<tile> starts Śrubek deeper in the level, for looking at a section without replaying it.
+	const startTile = Number(new URLSearchParams(location.search).get("x"));
+	if (Number.isFinite(startTile) && startTile > 0) level.spawn = { ...level.spawn, x: startTile };
 	let world: World = createWorld(level);
 	let state: GameState = createState();
 	const render = createRenderer(canvas);
@@ -31,15 +39,20 @@ export function start(canvas: HTMLCanvasElement): void {
 		}
 		const key = KEYS[e.code];
 		if (!key) return;
-		input[key] = down;
+		// A release waits for the next step, so even a tap shorter than a frame registers.
+		if (down) input[key] = true;
+		else released.add(key);
 		e.preventDefault();
 	};
+	const released = new Set<keyof Input>();
 	window.addEventListener("keydown", onKey(true));
 	window.addEventListener("keyup", onKey(false));
 
 	const tick = (): void => {
 		if (state.status === "over") return;
 		const next = applyEvents(state, step(world, input));
+		for (const key of released) input[key] = false;
+		released.clear();
 		if (next.respawns !== state.respawns) world = createWorld(level);
 		state = next;
 	};

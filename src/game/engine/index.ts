@@ -21,6 +21,11 @@ const PHYSICS = {
 	stompBounce: -3,
 	droneSpeed: 0.75,
 	knockback: 2.5,
+	dogSpeed: 0.5,
+	magnetRange: 48,
+	throwVx: 4,
+	throwVy: 0,
+	slideFriction: 0.05,
 	/** Frames of invulnerability after a hit. */
 	hurtFrames: 60,
 } as const;
@@ -29,6 +34,7 @@ export interface Input {
 	left: boolean;
 	right: boolean;
 	jump: boolean;
+	magnet: boolean;
 }
 
 export interface Player {
@@ -50,6 +56,7 @@ export interface Player {
 	airJumps: number;
 	/** Frames of thruster flame to draw after an air jump. */
 	boostLeft: number;
+	magnetHeld: boolean;
 }
 
 interface Nut extends Vec {
@@ -68,11 +75,30 @@ interface Drone {
 	alive: boolean;
 }
 
+interface Scrap {
+	x: number;
+	y: number;
+	vx: number;
+	vy: number;
+	state: "ground" | "held" | "thrown";
+}
+
+interface Dog {
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+	dir: 1 | -1;
+	alive: boolean;
+}
+
 export interface World {
 	level: Level;
 	player: Player;
 	nuts: Nut[];
 	drones: Drone[];
+	scraps: Scrap[];
+	dogs: Dog[];
 	camera: number;
 	frame: number;
 }
@@ -82,7 +108,8 @@ export type GameEvent =
 	| { type: "drone" }
 	| { type: "hit" }
 	| { type: "charge" }
-	| { type: "fall" };
+	| { type: "fall" }
+	| { type: "dog" };
 
 export function createWorld(level: Level): World {
 	const w = 12;
@@ -105,6 +132,7 @@ export function createWorld(level: Level): World {
 			hurtLeft: 0,
 			airJumps: 1,
 			boostLeft: 0,
+			magnetHeld: false,
 		},
 		nuts: level.nuts.map((n) => ({ ...n, taken: false })),
 		drones: level.drones.map((d) => ({
@@ -115,6 +143,21 @@ export function createWorld(level: Level): World {
 			minX: d.x0 * TILE + 2,
 			maxX: d.x1 * TILE + 2,
 			dir: 1,
+			alive: true,
+		})),
+		scraps: level.scraps.map((s) => ({
+			x: s.x * TILE + 4,
+			y: s.y * TILE + 8,
+			vx: 0,
+			vy: 0,
+			state: "ground",
+		})),
+		dogs: level.dogs.map((d) => ({
+			x: d.x * TILE,
+			y: d.y * TILE + 6,
+			w: 16,
+			h: 10,
+			dir: -1,
 			alive: true,
 		})),
 		camera: 0,
@@ -229,6 +272,112 @@ function moveDrones(world: World): void {
 	}
 }
 
+const SCRAP = 8;
+
+function moveDogs(world: World): void {
+	for (const d of world.dogs) {
+		if (!d.alive) continue;
+		const nextX = d.x + d.dir * PHYSICS.dogSpeed;
+		const front = d.dir > 0 ? nextX + d.w : nextX - 1;
+		const tx = Math.floor(front / TILE);
+		const wall = isSolid(world.level, tx, Math.floor((d.y + d.h - 1) / TILE));
+		const floor = isSolid(world.level, tx, Math.floor((d.y + d.h) / TILE));
+		if (wall || !floor) d.dir = d.dir > 0 ? -1 : 1;
+		else d.x = nextX;
+	}
+}
+
+function nearestScrap(world: World): Scrap | undefined {
+	const p = world.player;
+	const cx = p.x + p.w / 2;
+	const cy = p.y + p.h / 2;
+	let best: Scrap | undefined;
+	let bestD: number = PHYSICS.magnetRange;
+	for (const s of world.scraps) {
+		if (s.state !== "ground") continue;
+		const d = Math.hypot(s.x + SCRAP / 2 - cx, s.y + SCRAP / 2 - cy);
+		if (d <= bestD) {
+			best = s;
+			bestD = d;
+		}
+	}
+	return best;
+}
+
+/** One press pulls the nearest scrap in; the next press throws it the way Śrubek faces. */
+function magnet(world: World, input: Input): void {
+	const p = world.player;
+	const pressed = input.magnet && !p.magnetHeld;
+	p.magnetHeld = input.magnet;
+	const held = world.scraps.find((s) => s.state === "held");
+	if (held) {
+		held.x = p.x + p.w / 2 - SCRAP / 2;
+		held.y = p.y - SCRAP - 2;
+		if (pressed) {
+			// Thrown low, from the feet, so it skids along the ground into whatever walks there.
+			held.state = "thrown";
+			held.x = p.facing > 0 ? p.x + p.w : p.x - SCRAP;
+			held.y = p.y + p.h - SCRAP;
+			held.vx = p.facing * PHYSICS.throwVx;
+			held.vy = PHYSICS.throwVy;
+		}
+		return;
+	}
+	if (!pressed) return;
+	const target = nearestScrap(world);
+	if (target) target.state = "held";
+}
+
+/** Lands the scrap on the tile below; returns true when it is resting on a floor. */
+function landScrap(s: Scrap, ny: number): boolean {
+	const falling = s.vy > 0;
+	if (falling) s.y = Math.floor((ny + SCRAP) / TILE) * TILE - SCRAP;
+	s.vy = 0;
+	return falling;
+}
+
+/** A thrown piece flies, lands and keeps sliding; it is live until it stops. */
+function flyScrap(level: Level, s: Scrap): void {
+	s.vy = Math.min(PHYSICS.maxFall, s.vy + PHYSICS.gravity);
+	const nx = s.x + s.vx;
+	if (overlapsSolid(level, nx, s.y, SCRAP, SCRAP)) s.vx = 0;
+	else s.x = nx;
+	const ny = s.y + s.vy;
+	let onFloor = false;
+	if (overlapsSolid(level, s.x, ny, SCRAP, SCRAP)) onFloor = landScrap(s, ny);
+	else s.y = ny;
+	if (onFloor) {
+		const f = PHYSICS.slideFriction;
+		s.vx = Math.abs(s.vx) <= f ? 0 : s.vx - Math.sign(s.vx) * f;
+	}
+	if ((onFloor && s.vx === 0) || s.y > ROWS * TILE) s.state = "ground";
+}
+
+function scrapHitsDog(world: World, s: Scrap, events: GameEvent[]): void {
+	for (const d of world.dogs) {
+		if (!d.alive || !overlaps({ x: s.x, y: s.y, w: SCRAP, h: SCRAP }, d.x, d.y, d.w, d.h)) continue;
+		d.alive = false;
+		s.state = "ground";
+		s.vx = 0;
+		events.push({ type: "dog" });
+	}
+}
+
+function moveScraps(world: World, events: GameEvent[]): void {
+	for (const s of world.scraps) {
+		if (s.state !== "thrown") continue;
+		flyScrap(world.level, s);
+		if (s.state === "thrown") scrapHitsDog(world, s, events);
+	}
+}
+
+function touchDogs(world: World, events: GameEvent[]): void {
+	const p = world.player;
+	for (const d of world.dogs) {
+		if (d.alive && overlaps(p, d.x, d.y, d.w, d.h)) hurt(p, d.x + d.w / 2, events);
+	}
+}
+
 function hurt(p: Player, fromX: number, events: GameEvent[]): void {
 	if (p.hurtLeft > 0) return;
 	p.hurtLeft = PHYSICS.hurtFrames;
@@ -271,9 +420,13 @@ export function step(world: World, input: Input): GameEvent[] {
 	moveX(world);
 	moveY(world);
 	moveDrones(world);
+	moveDogs(world);
+	magnet(world, input);
 
 	const events: GameEvent[] = [];
+	moveScraps(world, events);
 	touchDrones(world, events);
+	touchDogs(world, events);
 	touchPickups(world, events);
 	if (p.hurtLeft > 0) p.hurtLeft -= 1;
 	if (p.boostLeft > 0) p.boostLeft -= 1;

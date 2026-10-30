@@ -32,7 +32,8 @@ export interface GameState {
 	bolts: number;
 	megaBalls: number;
 	/** `boss` means the gate was reached and the arena is on. */
-	status: "playing" | "boss" | "over";
+	/** `cleared` is the pause after a beaten boss; Enter moves on. */
+	status: "playing" | "boss" | "cleared" | "over";
 }
 
 export function createState(): GameState {
@@ -106,15 +107,14 @@ function applyEvent(state: GameState, event: GameEvent): GameState {
 		case "bossHit":
 			return { ...state, levelPoints: state.levelPoints + BOSS_HIT_POINTS };
 		case "bossDown":
-			// The level is banked and the next one starts fresh.
+			// The level is banked; the run waits on the cleared screen until Enter.
 			return {
 				...state,
 				points: state.points + state.levelPoints + BOSS_POINTS,
 				levelPoints: 0,
-				level: state.level + 1,
 				bossesSeen: [...state.bossesSeen, event.boss],
 				battery: BATTERY_MAX,
-				status: "playing",
+				status: "cleared",
 			};
 		case "slam":
 		case "megaFired":
@@ -129,6 +129,12 @@ function applyEvent(state: GameState, event: GameEvent): GameState {
 			return battery > 0 ? { ...state, battery } : loseLife(state);
 		}
 	}
+}
+
+/** Leaves the cleared screen for the next level. */
+export function nextLevel(state: GameState): GameState {
+	if (state.status !== "cleared") return state;
+	return { ...state, level: state.level + 1, status: "playing" };
 }
 
 export function applyEvents(state: GameState, events: GameEvent[]): GameState {

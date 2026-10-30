@@ -1241,6 +1241,29 @@ function drawPress(ctx: Ctx, p: Press, camera: number): void {
 	if (p.phase === "drop") glow(ctx, x + 8, y + 15, 10, "rgba(255,120,60,A)", 0.35);
 }
 
+function drawCleared(ctx: Ctx, state: GameState, frame: number): void {
+	ctx.fillStyle = "rgba(5,4,12,0.6)";
+	ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+	glow(
+		ctx,
+		VIEW_W / 2,
+		VIEW_H / 2 - 30,
+		90,
+		"rgba(255,200,90,A)",
+		0.35 + Math.sin(frame / 10) * 0.1,
+	);
+	fancyText(ctx, "BOSS POKONANY!", VIEW_W / 2, VIEW_H / 2 - 34, 38, "center");
+	fancyText(
+		ctx,
+		`poziom ${state.level} zaliczony · wynik ${totalPoints(state)}`,
+		VIEW_W / 2,
+		VIEW_H / 2 + 4,
+		16,
+		"center",
+	);
+	fancyText(ctx, `Enter: poziom ${state.level + 1}`, VIEW_W / 2, VIEW_H / 2 + 30, 14, "center");
+}
+
 function drawGate(ctx: Ctx, x: number, y: number, frame: number): void {
 	// Two-tile steel door in a frame, with a lamp over it.
 	rounded(ctx, x - 1, y - 1, TILE + 2, 3 * TILE + 1, 2);
@@ -1361,6 +1384,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		drawHud(ctx, state, world.frame);
 		if (world.boss?.alive) drawBossBar(ctx, world.boss);
 		if (state.status === "over") drawOverlay(ctx, state, board);
+		if (state.status === "cleared") drawCleared(ctx, state, world.frame);
 		if (fps !== undefined) fancyText(ctx, `${fps} FPS`, VIEW_W - 6, 14, 11, "right");
 	};
 }

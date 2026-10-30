@@ -446,13 +446,17 @@ function beam(boss: Boss, world: World, events: GameEvent[]): void {
 	boss.timer = boss.spec.openFrames;
 }
 
+/** How far the crane magnet's field reaches, in pixels from its centre. */
+export const MAGNET_REACH = 130;
+
 /** The crane magnet drags Śrubek toward itself while dropping scrap on him. */
 function pull(boss: Boss, world: World, events: GameEvent[]): void {
 	const p = world.player;
 	const cx = boss.x + boss.w / 2;
 	const dx = cx - (p.x + p.w / 2);
-	// Stronger than ground friction, so the drag wins when Śrubek stands still.
-	p.vx += Math.sign(dx) * 0.35;
+	// Stronger than ground friction, so the drag wins when Śrubek stands still,
+	// but only within the field: from the arena's edges he is out of reach.
+	if (Math.abs(dx) < MAGNET_REACH) p.vx += Math.sign(dx) * 0.35;
 	if (boss.timer % 25 === 0 && boss.ammo > 0) {
 		boss.ammo -= 1;
 		world.shots.push({ x: cx - 4, y: boss.y + boss.h, vx: 0, vy: 1 });

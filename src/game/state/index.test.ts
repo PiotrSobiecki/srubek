@@ -11,6 +11,7 @@ import {
 	GEAR_POINTS,
 	LIVES_START,
 	NUT_POINTS,
+	nextLevel,
 	totalPoints,
 } from "./index";
 
@@ -80,16 +81,22 @@ describe("battery and lives", () => {
 		expect(s.levelPoints).toBe(NUT_POINTS);
 	});
 
-	it("boss hits score and the final blow banks the level and opens the next", () => {
+	it("boss hits score and the final blow banks the level; Enter opens the next", () => {
 		let s = applyEvents(createState(), [{ type: "gate" }, { type: "bossHit" }]);
 		expect(s.status).toBe("boss");
 		expect(s.levelPoints).toBe(BOSS_HIT_POINTS);
 		s = applyEvents(s, [{ type: "bossDown", boss: "prasa/opad/rdzen" }]);
 		expect(s.bossesSeen).toEqual(["prasa/opad/rdzen"]);
-		expect(s.status).toBe("playing");
-		expect(s.level).toBe(2);
+		expect(s.status).toBe("cleared");
+		expect(s.level).toBe(1);
 		expect(s.levelPoints).toBe(0);
 		expect(totalPoints(s)).toBe(BOSS_HIT_POINTS + BOSS_POINTS);
+		// Nothing moves on the cleared screen until Enter.
+		expect(applyEvents(s, [{ type: "hit" }])).toEqual(s);
+		s = nextLevel(s);
+		expect(s.status).toBe("playing");
+		expect(s.level).toBe(2);
+		expect(nextLevel(createState())).toEqual(createState());
 	});
 
 	it("losing a life in the arena stays in the arena", () => {

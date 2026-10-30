@@ -9,6 +9,7 @@ import {
 	bossPool,
 	coreOpen,
 	createBoss,
+	MAGNET_REACH,
 	makeBoss,
 	pickBoss,
 } from "./index";
@@ -279,10 +280,23 @@ describe("wieża / laser", () => {
 });
 
 describe("magnes / przyciag", () => {
+	it("leaves Śrubek alone beyond its reach", () => {
+		const [world, boss] = arena("magnes", "przyciag", "rdzen");
+		const p = world.player;
+		p.x = boss.x + boss.w / 2 - MAGNET_REACH - 30;
+		p.y = boss.floorY + boss.h - p.h;
+		const startX = p.x;
+		boss.phase = "pull";
+		boss.timer = 60;
+		boss.ammo = 0;
+		run(world, 30);
+		expect(p.x).toBe(startX);
+	});
+
 	it("drags Śrubek toward itself and drops scrap, then sinks into reach", () => {
 		const [world, boss] = arena("magnes", "przyciag", "rdzen");
 		const p = world.player;
-		p.x = boss.x - 120;
+		p.x = boss.x - 90;
 		p.y = boss.floorY + boss.h - p.h;
 		const startX = p.x;
 		let dropped = 0;

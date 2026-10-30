@@ -12,7 +12,7 @@ import {
 import { carriedScrap, createWorld, type Input, step, type World } from "@/game/engine";
 import { buildArena, buildLevel, type Level } from "@/game/level";
 import { type BoardRow, createRenderer } from "@/game/render";
-import { applyEvents, createState, type GameState } from "@/game/state";
+import { applyEvents, createState, type GameState, nextLevel } from "@/game/state";
 
 const STEP_MS = 1000 / 60;
 
@@ -74,6 +74,11 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 	const onShortcut = (code: string): void => {
 		audio.unlock();
 		if (code === "KeyM") audio.toggleMute();
+		if (code === "Enter" && state.status === "cleared") {
+			const next = nextLevel(state);
+			world = worldFor(state, next);
+			state = next;
+		}
 		if (code === "Enter" && state.status === "over") {
 			level = freshLevel(1);
 			world = createWorld(level);
@@ -124,7 +129,7 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 	};
 
 	const tick = (): void => {
-		if (state.status === "over") return;
+		if (state.status === "over" || state.status === "cleared") return;
 		world.megaBalls = state.megaBalls;
 		const events = step(world, input);
 		audio.react(events);

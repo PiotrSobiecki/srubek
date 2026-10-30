@@ -9,7 +9,7 @@ import {
 	makeBoss,
 	pickBoss,
 } from "@/game/boss";
-import { carriedScrap, createWorld, type Input, step, type World } from "@/game/engine";
+import { carriedScrap, createWorld, type Input, step, VIEW_W, type World } from "@/game/engine";
 import { buildArena, buildLevel, type Level } from "@/game/level";
 import { type BoardRow, createRenderer } from "@/game/render";
 import { applyEvents, createState, type GameState, nextLevel } from "@/game/state";
@@ -50,11 +50,14 @@ export interface Game {
 	enter(): void;
 	/** Change Śrubek's look; takes effect on the next frame. */
 	setSkin(skin: Skin): void;
+	/** Steer toward a point on the canvas (0..1 of its width), or stop steering. */
+	pointAt(fraction: number | undefined): void;
 }
 
 export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 	let board: readonly BoardRow[] = [];
 	let skin: Skin = DEFAULT_SKIN;
+	let pointer: number | undefined;
 	const input: Input = {
 		left: false,
 		right: false,
@@ -141,6 +144,13 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 
 	const tick = (): void => {
 		if (state.status === "over" || state.status === "cleared") return;
+		if (pointer !== undefined) {
+			// The mouse steers: run toward the pointer until Śrubek is under it.
+			const px = pointer * VIEW_W + world.camera;
+			const cx = world.player.x + world.player.w / 2;
+			input.left = px < cx - 6;
+			input.right = px > cx + 6;
+		}
 		world.megaBalls = state.megaBalls;
 		const events = step(world, input);
 		audio.react(events);
@@ -188,6 +198,13 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 		},
 		setSkin(next) {
 			skin = next;
+		},
+		pointAt(fraction) {
+			pointer = fraction;
+			if (fraction === undefined) {
+				input.left = false;
+				input.right = false;
+			}
 		},
 	};
 }

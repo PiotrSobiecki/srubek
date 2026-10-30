@@ -61,20 +61,36 @@ export function mountPad(host: HTMLElement, game: Game): (visible: boolean) => v
 }
 
 /**
- * Mouse on the canvas: left button jumps, right button throws, middle pulls
- * with the magnet. Any click also stands in for Enter on the end screens.
+ * Mouse on the canvas: holding the left button runs toward the pointer, the
+ * right button jumps, the middle button throws. Any click also stands in for
+ * Enter on the end screens; a finger on the canvas only does that.
  */
 export function mountMouse(canvas: HTMLCanvasElement, game: Game): void {
-	const byButton: Record<number, keyof Input | undefined> = { 0: "jump", 1: "magnet", 2: "throw" };
+	const byButton: Record<number, keyof Input | undefined> = { 1: "throw", 2: "jump" };
+	const fraction = (e: PointerEvent): number => {
+		const r = canvas.getBoundingClientRect();
+		return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+	};
+	let steering = false;
 	canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+	canvas.addEventListener("pointermove", (e) => {
+		if (steering && e.pointerType === "mouse") game.pointAt(fraction(e));
+	});
 	canvas.addEventListener("pointerdown", (e) => {
-		if (e.pointerType !== "mouse") {
-			// A finger on the canvas itself only confirms the end screens.
-			game.enter();
+		game.enter();
+		if (e.pointerType !== "mouse") return;
+		e.preventDefault();
+		if (e.button === 0) {
+			steering = true;
+			game.pointAt(fraction(e));
+			const stop = (): void => {
+				steering = false;
+				game.pointAt(undefined);
+				window.removeEventListener("pointerup", stop);
+			};
+			window.addEventListener("pointerup", stop);
 			return;
 		}
-		e.preventDefault();
-		game.enter();
 		const key = byButton[e.button];
 		if (!key) return;
 		game.press(key, true);

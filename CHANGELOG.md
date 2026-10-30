@@ -1,3 +1,10 @@
+# [1.14.0](https://github.com/PiotrSobiecki/srubek/compare/v1.13.0...v1.14.0) (2026-10-30)
+
+
+### Features
+
+* bossowie z części (partia 1), sakwa na arenie i mega kula ([ad7f60e](https://github.com/PiotrSobiecki/srubek/commit/ad7f60eb99bef853bc9e9fffa7c64df4c74359ea))
+
 # [1.13.0](https://github.com/PiotrSobiecki/srubek/compare/v1.12.0...v1.13.0) (2026-10-30)
 
 

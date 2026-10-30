@@ -3,7 +3,7 @@
  * in pixels per frame so a test can replay N frames and assert on positions.
  */
 
-import { isSolid, type Level, TILE, type Vec } from "@/game/level";
+import { isSolid, type Level, ROWS, TILE, type Vec } from "@/game/level";
 
 export const VIEW_W = 480;
 export const VIEW_H = 256;
@@ -46,6 +46,10 @@ export interface Player {
 	sx: number;
 	sy: number;
 	hurtLeft: number;
+	/** Air jumps left; refilled on landing. */
+	airJumps: number;
+	/** Frames of thruster flame to draw after an air jump. */
+	boostLeft: number;
 }
 
 interface Nut extends Vec {
@@ -73,7 +77,12 @@ export interface World {
 	frame: number;
 }
 
-export type GameEvent = { type: "nut" } | { type: "drone" } | { type: "hit" } | { type: "charge" };
+export type GameEvent =
+	| { type: "nut" }
+	| { type: "drone" }
+	| { type: "hit" }
+	| { type: "charge" }
+	| { type: "fall" };
 
 export function createWorld(level: Level): World {
 	const w = 12;
@@ -94,6 +103,8 @@ export function createWorld(level: Level): World {
 			sx: 0,
 			sy: 0,
 			hurtLeft: 0,
+			airJumps: 1,
+			boostLeft: 0,
 		},
 		nuts: level.nuts.map((n) => ({ ...n, taken: false })),
 		drones: level.drones.map((d) => ({
@@ -171,18 +182,29 @@ function moveY(world: World): void {
 	p.onGround = p.vy >= 0 && overlapsSolid(world.level, p.x, p.y + 1, p.w, p.h);
 }
 
-function control(p: Player, input: Input): void {
+function steer(p: Player, input: Input): void {
 	const c = PHYSICS;
 	if (input.left === input.right) {
 		p.vx = Math.abs(p.vx) <= c.friction ? 0 : p.vx - Math.sign(p.vx) * c.friction;
-	} else {
-		const dir = input.right ? 1 : -1;
-		p.facing = dir;
-		p.vx = Math.max(-c.maxRun, Math.min(c.maxRun, p.vx + dir * c.runAccel));
+		return;
 	}
+	const dir = input.right ? 1 : -1;
+	p.facing = dir;
+	p.vx = Math.max(-c.maxRun, Math.min(c.maxRun, p.vx + dir * c.runAccel));
+}
 
-	if (input.jump && !p.jumpHeld && p.onGround) {
+function control(p: Player, input: Input): void {
+	const c = PHYSICS;
+	steer(p, input);
+
+	if (p.onGround) p.airJumps = 1;
+	if (input.jump && !p.jumpHeld && (p.onGround || p.airJumps > 0)) {
+		if (!p.onGround) {
+			p.airJumps -= 1;
+			p.boostLeft = 12;
+		}
 		p.vy = c.jumpVelocity;
+		p.sy = 0;
 		p.holdLeft = c.holdFrames;
 	}
 	p.jumpHeld = input.jump;
@@ -254,6 +276,8 @@ export function step(world: World, input: Input): GameEvent[] {
 	touchDrones(world, events);
 	touchPickups(world, events);
 	if (p.hurtLeft > 0) p.hurtLeft -= 1;
+	if (p.boostLeft > 0) p.boostLeft -= 1;
+	if (p.y > ROWS * TILE) events.push({ type: "fall" });
 
 	const maxCamera = world.level.widthTiles * TILE - VIEW_W;
 	world.camera = Math.max(0, Math.min(maxCamera, p.x + p.w / 2 - VIEW_W / 2));

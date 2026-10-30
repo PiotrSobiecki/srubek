@@ -4,7 +4,7 @@ describe("buildLevel(1)", () => {
 	const level = buildLevel(1);
 
 	it("joins the nuts and drones segments", () => {
-		expect(level.segments).toEqual(["nuts", "drones"]);
+		expect(level.segments).toEqual(["nuts", "drones", "gap"]);
 		expect(level.nuts.length).toBeGreaterThan(5);
 		expect(level.drones.length).toBeGreaterThanOrEqual(3);
 		expect(level.chargers).toHaveLength(1);

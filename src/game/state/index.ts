@@ -54,6 +54,8 @@ function applyEvent(state: GameState, event: GameEvent): GameState {
 			return { ...state, levelPoints: state.levelPoints + DRONE_POINTS };
 		case "charge":
 			return { ...state, battery: BATTERY_MAX };
+		case "fall":
+			return loseLife(state);
 		case "hit": {
 			const battery = state.battery - 1;
 			return battery > 0 ? { ...state, battery } : loseLife(state);

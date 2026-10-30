@@ -331,6 +331,15 @@ function drawPlayer(
 		ctx.drawImage(sprite, sx, sy);
 	}
 	ctx.restore();
+	if (p.boostLeft > 0) {
+		const flicker = frame % 2;
+		ctx.fillStyle = "#ffb03b";
+		ctx.fillRect(sx + 3, sy + p.h, 2, 2 + flicker);
+		ctx.fillRect(sx + 7, sy + p.h, 2, 3 - flicker);
+		ctx.fillStyle = "#ff5a1f";
+		ctx.fillRect(sx + 4, sy + p.h + 2, 1, 2);
+		ctx.fillRect(sx + 8, sy + p.h + 3, 1, 1);
+	}
 }
 
 function drawHud(ctx: CanvasRenderingContext2D, state: GameState, s: Sprites): void {

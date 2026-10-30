@@ -42,6 +42,12 @@ describe("battery and lives", () => {
 		expect(s.status).toBe("playing");
 	});
 
+	it("a fall costs a life outright", () => {
+		const s = applyEvents(createState(), [{ type: "fall" }]);
+		expect(s.lives).toBe(LIVES_START - 1);
+		expect(s.respawns).toBe(1);
+	});
+
 	it("keeps banked points from earlier levels through a lost life", () => {
 		const s = applyEvents(
 			{ ...createState(), points: 300 },

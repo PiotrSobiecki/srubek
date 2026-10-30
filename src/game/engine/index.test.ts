@@ -1,4 +1,4 @@
-import { levelFromRows, TILE } from "@/game/level";
+import { buildLevel, levelFromRows, ROWS, TILE } from "@/game/level";
 import { createWorld, type Input, step, type World } from "./index";
 
 const IDLE: Input = { left: false, right: false, jump: false };
@@ -162,5 +162,57 @@ describe("drones", () => {
 		world.player.y = 7 * TILE;
 		settle(world);
 		expect(step(world, IDLE)).toContainEqual({ type: "charge" });
+	});
+});
+
+describe("air jump", () => {
+	function reach(world: World, press: number[]): number {
+		settle(world);
+		const start = world.player.x;
+		let airborne = false;
+		for (let i = 0; i < 300; i++) {
+			const jump = press.some((at) => i >= at && i < at + 30);
+			step(world, { ...IDLE, right: true, jump });
+			if (!world.player.onGround) airborne = true;
+			else if (airborne) break;
+		}
+		return world.player.x - start;
+	}
+
+	it("is granted once per flight and refilled on landing", () => {
+		const world = createWorld(FLAT);
+		settle(world);
+		step(world, { ...IDLE, jump: true });
+		run(world, IDLE, 5);
+		const before = world.player.vy;
+		step(world, { ...IDLE, jump: true });
+		expect(world.player.vy).toBeLessThan(before);
+		run(world, IDLE, 5);
+		const again = world.player.vy;
+		step(world, { ...IDLE, jump: true });
+		expect(world.player.vy).toBeGreaterThan(again);
+		run(world, IDLE, 120);
+		expect(world.player.onGround).toBe(true);
+		expect(world.player.airJumps).toBe(1);
+	});
+
+	it("is what crosses the gap in level 1", () => {
+		const level = buildLevel(1);
+		const bottom = level.rows[ROWS - 1] ?? "";
+		const gaps = bottom.split("#").filter((s) => s.length > 0);
+		expect(gaps.length).toBeGreaterThan(0);
+		const widest = Math.max(...gaps.map((g) => g.length)) * TILE;
+		const single = reach(createWorld(FLAT), [0]);
+		const double = reach(createWorld(FLAT), [0, 36]);
+		expect(single).toBeLessThan(widest - 12);
+		expect(double).toBeGreaterThan(widest + 4);
+	});
+
+	it("falling out of the level reports a fall", () => {
+		const world = createWorld(FLAT);
+		world.level = levelFromRows(["P...", "...."]);
+		const events = [];
+		for (let i = 0; i < 120; i++) events.push(...step(world, IDLE));
+		expect(events).toContainEqual({ type: "fall" });
 	});
 });

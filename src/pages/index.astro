@@ -7,6 +7,20 @@ import Layout from "@/layouts/Layout.astro";
 		<h1 class="title text-5xl tracking-wider">ŚRUBEK</h1>
 		<canvas id="game" width="960" height="512" class="w-full max-w-[960px] rounded-lg bg-neutral-900 shadow-2xl" aria-label="Gra Śrubek"></canvas>
 		<p class="hint max-w-[960px] text-center text-base tracking-wide text-amber-200/80">strzałki / WASD: jazda · spacja: skok (przytrzymaj, by skoczyć wyżej; w locie raz jeszcze) · C: magnes zbiera złom (do 10 szt.) · X: rzut złomem · M: dźwięk</p>
+
+		<form id="score-form" hidden class="flex w-full max-w-[960px] flex-col items-center gap-2 rounded-lg border border-amber-300/30 bg-neutral-900/80 p-4">
+			<p id="score-note" class="hint text-lg tracking-wide text-amber-100"></p>
+			<div class="flex gap-2">
+				<input id="score-nick" name="nick" required autocomplete="off" placeholder="ksywka" class="rounded border border-amber-300/40 bg-neutral-950 px-3 py-1 text-amber-50 outline-none focus:border-amber-300" />
+				<button type="submit" class="hint rounded bg-amber-400 px-4 py-1 text-lg tracking-wide text-neutral-950 hover:bg-amber-300">Zapisz wynik</button>
+			</div>
+			<p class="text-xs text-neutral-400">Tablica jest publiczna: każdy, kto zna adres, zobaczy ksywkę.</p>
+		</form>
+
+		<section class="w-full max-w-[960px]">
+			<h2 class="hint text-2xl tracking-wide text-amber-200">Najlepsze wyniki</h2>
+			<ol id="score-list" class="hint mt-2 space-y-1 text-lg tracking-wide text-amber-50/90"></ol>
+		</section>
 	</main>
 </Layout>
 
@@ -31,11 +45,28 @@ import Layout from "@/layouts/Layout.astro";
 </style>
 
 <script>
+	import { mountBoard } from "@/board";
 	import { start } from "@/game/main";
 
 	const canvas = document.getElementById("game");
-	// The canvas draws its own text, so the font must be in before the first frame.
-	document.fonts.load("20px Bangers").finally(() => {
-		if (canvas instanceof HTMLCanvasElement) start(canvas);
-	});
+	const form = document.getElementById("score-form");
+	const nick = document.getElementById("score-nick");
+	const note = document.getElementById("score-note");
+	const list = document.getElementById("score-list");
+
+	if (
+		form instanceof HTMLFormElement &&
+		nick instanceof HTMLInputElement &&
+		note instanceof HTMLElement &&
+		list instanceof HTMLOListElement
+	) {
+		const board = mountBoard({ form, nick, note, list });
+		void board.refresh();
+		// The canvas draws its own text, so the font must be in before the first frame.
+		document.fonts.load("20px Bangers").finally(() => {
+			if (canvas instanceof HTMLCanvasElement) {
+				start(canvas, { onEnd: (state) => board.offer(state), onRestart: () => board.hide() });
+			}
+		});
+	}
 </script>

@@ -25,7 +25,13 @@ const KEYS: Record<string, keyof Input> = {
 	ArrowDown: "throw",
 };
 
-export function start(canvas: HTMLCanvasElement): void {
+export interface Hooks {
+	/** The run just ended, won or lost; the page may ask for a nick. */
+	onEnd?(state: GameState): void;
+	onRestart?(): void;
+}
+
+export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): void {
 	const input: Input = { left: false, right: false, jump: false, magnet: false, throw: false };
 	const level = buildLevel(1);
 	// ?x=<tile> starts Śrubek deeper in the level, for looking at a section without replaying it.
@@ -45,12 +51,15 @@ export function start(canvas: HTMLCanvasElement): void {
 	const onShortcut = (code: string): void => {
 		audio.unlock();
 		if (code === "KeyM") audio.toggleMute();
-		if (code === "Enter" && state.status !== "playing") {
+		if (code === "Enter" && (state.status === "over" || state.status === "won")) {
 			world = createWorld(level);
 			state = createState();
+			hooks.onRestart?.();
 		}
 	};
 	const onKey = (down: boolean) => (e: KeyboardEvent) => {
+		// Typing a nick into the form must not steer the game.
+		if (e.target instanceof HTMLInputElement) return;
 		if (down) onShortcut(e.code);
 		const key = KEYS[e.code];
 		if (!key) return;
@@ -67,6 +76,14 @@ export function start(canvas: HTMLCanvasElement): void {
 	const enterArena = (): World =>
 		createWorld(arena, createBoss(makeBoss("prasa", "opad", "rdzen", 1), arena.widthTiles));
 
+	/** Picks the world a new state calls for: the arena after the gate, a fresh one after a lost life. */
+	const worldFor = (prev: GameState, next: GameState): World => {
+		if (next.status === "boss" && prev.status === "playing") return enterArena();
+		if (next.respawns !== prev.respawns)
+			return next.status === "boss" ? enterArena() : createWorld(level);
+		return world;
+	};
+
 	const tick = (): void => {
 		if (state.status === "over" || state.status === "won") return;
 		const events = step(world, input);
@@ -74,9 +91,9 @@ export function start(canvas: HTMLCanvasElement): void {
 		const next = applyEvents(state, events);
 		for (const key of released) input[key] = false;
 		released.clear();
-		if (next.status === "boss" && state.status === "playing") world = enterArena();
-		else if (next.respawns !== state.respawns)
-			world = next.status === "boss" ? enterArena() : createWorld(level);
+		world = worldFor(state, next);
+		// The early return above means any end status here is a fresh one.
+		if (next.status === "over" || next.status === "won") hooks.onEnd?.(next);
 		state = next;
 	};
 

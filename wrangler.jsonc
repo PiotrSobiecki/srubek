@@ -31,6 +31,17 @@
 	// vite.build.sourcemap) so observability traces name real source lines
 	// instead of minified output.
 	"upload_source_maps": true,
+	// Local dev reads the top-level block, so the game bindings sit here too.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "srubek-scores",
+			"database_id": "c7781402-ff5c-474f-9098-b16dc776e5ef"
+		}
+	],
+	"ratelimits": [
+		{ "name": "SCORE_LIMIT", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }
+	],
 	"vars": {
 		"CLOUDFLARE_ENV": "dev"
 	},
@@ -59,18 +70,48 @@
 	"env": {
 		"dev": {
 			"name": "srubek-dev",
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "srubek-scores",
+					"database_id": "c7781402-ff5c-474f-9098-b16dc776e5ef"
+				}
+			],
+			"ratelimits": [
+				{ "name": "SCORE_LIMIT", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }
+			],
 			"vars": {
 				"CLOUDFLARE_ENV": "dev"
 			}
 		},
 		"staging": {
 			"name": "srubek-staging",
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "srubek-scores",
+					"database_id": "c7781402-ff5c-474f-9098-b16dc776e5ef"
+				}
+			],
+			"ratelimits": [
+				{ "name": "SCORE_LIMIT", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }
+			],
 			"vars": {
 				"CLOUDFLARE_ENV": "staging"
 			}
 		},
 		"production": {
 			"name": "srubek-production",
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "srubek-scores",
+					"database_id": "c7781402-ff5c-474f-9098-b16dc776e5ef"
+				}
+			],
+			"ratelimits": [
+				{ "name": "SCORE_LIMIT", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }
+			],
 			"routes": [{ "pattern": "srubek.sobiecki.org", "custom_domain": true }],
 			"vars": {
 				"CLOUDFLARE_ENV": "production"

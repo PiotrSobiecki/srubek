@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/PiotrSobiecki/srubek/compare/v1.1.0...v1.2.0) (2026-10-30)
+
+
+### Features
+
+* drony, bateria, ładowarka, życia i koniec gry ([e889307](https://github.com/PiotrSobiecki/srubek/commit/e8893075922c9e8e99102823d2ab42fd7f2342f2))
+
 # [1.1.0](https://github.com/PiotrSobiecki/srubek/compare/v1.0.1...v1.1.0) (2026-10-30)
 
 

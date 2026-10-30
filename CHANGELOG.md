@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/PiotrSobiecki/srubek/compare/v1.14.1...v1.15.0) (2026-10-30)
+
+
+### Features
+
+* wynik wpisuje się w oknie nad grą, tablica na 15 pozycji ([069ccb4](https://github.com/PiotrSobiecki/srubek/commit/069ccb469a007536fe96401c660a1c56c3bbb3c7))
+
 ## [1.14.1](https://github.com/PiotrSobiecki/srubek/compare/v1.14.0...v1.14.1) (2026-10-30)
 
 

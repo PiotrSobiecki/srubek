@@ -16,14 +16,12 @@ const KEYS: Record<string, keyof Input> = {
 	Space: "jump",
 	ArrowUp: "jump",
 	KeyW: "jump",
+	KeyC: "magnet",
 	KeyE: "magnet",
-	KeyX: "magnet",
-	ShiftLeft: "magnet",
+	KeyX: "throw",
 	KeyF: "throw",
-	KeyQ: "throw",
 	ControlLeft: "throw",
 	ArrowDown: "throw",
-	KeyS: "throw",
 };
 
 export function start(canvas: HTMLCanvasElement): void {

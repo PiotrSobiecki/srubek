@@ -1,3 +1,10 @@
+# [1.25.0](https://github.com/PiotrSobiecki/srubek/compare/v1.24.2...v1.25.0) (2026-10-30)
+
+
+### Features
+
+* generator odcinków z klocków, nowe przeszkody i trzy motywy ([9b9a06b](https://github.com/PiotrSobiecki/srubek/commit/9b9a06b7fde26df1a2a3ebb2fc5ee49996426025))
+
 ## [1.24.2](https://github.com/PiotrSobiecki/srubek/compare/v1.24.1...v1.24.2) (2026-10-30)
 
 

@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/PiotrSobiecki/srubek/compare/v1.3.0...v1.4.0) (2026-10-30)
+
+
+### Features
+
+* magnes, złom i pies-maszyna w odcinku 4 ([05119c4](https://github.com/PiotrSobiecki/srubek/commit/05119c4748356ac46a5226e26a8d8ed1038bd4ca))
+
 # [1.3.0](https://github.com/PiotrSobiecki/srubek/compare/v1.2.0...v1.3.0) (2026-10-30)
 
 

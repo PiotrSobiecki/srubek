@@ -9,6 +9,10 @@ import Layout from "@/layouts/Layout.astro";
 		<div id="stage" class="relative w-full max-w-[960px]">
 			<canvas id="game" width="960" height="512" class="block w-full rounded-lg bg-neutral-900 shadow-2xl" aria-label="Gra Śrubek"></canvas>
 			<div id="pad" hidden class="pad"></div>
+			<div class="float-btns">
+				<button id="float-menu" type="button" class="float-btn" aria-label="Menu">☰</button>
+				<button id="float-fullscreen" type="button" class="float-btn" aria-label="Pełny ekran">⤢</button>
+			</div>
 
 			<div id="menu" class="menu">
 				<div class="menu-panel">
@@ -51,7 +55,12 @@ import Layout from "@/layouts/Layout.astro";
 
 	</main>
 
-	<div id="score-modal" hidden class="fixed inset-0 z-10 flex items-center justify-center bg-black/60 p-4">
+	<div id="rotate" class="rotate">
+		<div class="phone"></div>
+		<p class="hint text-2xl tracking-wide text-amber-100">Obróć telefon poziomo, żeby grać</p>
+	</div>
+
+	<div id="score-modal" hidden class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
 		<form id="score-form" class="flex w-full max-w-md flex-col gap-3 rounded-xl border border-amber-300/40 bg-neutral-950/95 p-5 shadow-2xl">
 			<h2 class="title text-3xl tracking-wider">ZAPISZ WYNIK</h2>
 			<p id="score-note" class="hint text-lg tracking-wide text-amber-100"></p>
@@ -203,6 +212,140 @@ import Layout from "@/layouts/Layout.astro";
 	.preset:hover {
 		border-color: #ffd27a;
 	}
+
+	/* Small round buttons in the stage's corner, for when the page around it is out of reach. */
+	.float-btns {
+		display: none;
+		position: absolute;
+		top: max(6px, env(safe-area-inset-top));
+		right: max(6px, env(safe-area-inset-right));
+		gap: 6px;
+		z-index: 5;
+	}
+	.float-btn {
+		width: 2.4rem;
+		height: 2.4rem;
+		border-radius: 999px;
+		border: 2px solid rgba(255, 210, 120, 0.55);
+		background: rgba(20, 16, 30, 0.6);
+		color: #ffe9a8;
+		font-size: 1.2rem;
+		line-height: 1;
+		touch-action: manipulation;
+		-webkit-tap-highlight-color: transparent;
+	}
+	#stage.is-fullscreen .float-btns {
+		display: flex;
+	}
+
+	/* Upright phones get a request to turn; the game stays paused behind it. */
+	.rotate {
+		display: none;
+		position: fixed;
+		inset: 0;
+		z-index: 70;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 1.2rem;
+		padding: 2rem;
+		text-align: center;
+		background: #0b0912;
+	}
+	.phone {
+		width: 2.8rem;
+		height: 4.8rem;
+		border: 4px solid #ffb347;
+		border-radius: 0.7rem;
+		animation: turn 1.8s ease-in-out infinite;
+	}
+	@keyframes turn {
+		0%,
+		30% {
+			transform: rotate(0deg);
+		}
+		60%,
+		100% {
+			transform: rotate(-90deg);
+		}
+	}
+
+	@media (pointer: coarse) {
+		.float-btns {
+			display: flex;
+		}
+	}
+	@media (pointer: coarse) and (orientation: portrait) {
+		.rotate {
+			display: flex;
+		}
+	}
+
+	/* Phones and tablets held sideways: the stage owns the whole screen. */
+	@media (pointer: coarse) and (orientation: landscape) {
+		html,
+		body {
+			overflow: hidden;
+			overscroll-behavior: none;
+		}
+		main {
+			padding: 0 !important;
+		}
+		main > :not(#stage) {
+			display: none !important;
+		}
+		#stage {
+			position: fixed;
+			inset: 0;
+			z-index: 40;
+			width: auto;
+			max-width: none;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			background: #000;
+		}
+		#stage #game {
+			width: min(100vw, calc(100dvh * 960 / 512));
+			height: auto;
+			border-radius: 0;
+			box-shadow: none;
+		}
+		#stage .pad {
+			grid-template-columns: 3.6rem 3.6rem 1fr 3.1rem 3.1rem 3.6rem;
+			grid-template-rows: 3.1rem 3.1rem;
+			gap: 0.45rem;
+			padding: 0 max(0.5rem, env(safe-area-inset-left)) max(0.5rem, env(safe-area-inset-bottom))
+				max(0.5rem, env(safe-area-inset-right));
+		}
+		.menu {
+			border-radius: 0;
+		}
+		.menu-panel {
+			width: 70%;
+			gap: 0.35rem;
+			padding: 0.5rem 3.6rem 0.5rem 0.8rem;
+			/* The stage blocks gestures for the game; the menu must still scroll. */
+			touch-action: pan-y;
+		}
+		.menu-panel > h2 {
+			order: -2;
+			font-size: 1.5rem;
+		}
+		#play {
+			order: -1;
+			margin: 0;
+			padding: 0.15rem 1rem;
+			font-size: 1.6rem;
+		}
+		.menu-panel > p {
+			display: none;
+		}
+		.preset {
+			font-size: 0.9rem;
+			padding: 0.15rem 0.5rem 0.15rem 1.6rem;
+		}
+	}
 </style>
 
 <script>
@@ -226,6 +369,8 @@ import Layout from "@/layouts/Layout.astro";
 	const menu = document.getElementById("menu");
 	const play = document.getElementById("play");
 	const openMenu = document.getElementById("open-menu");
+	const floatMenu = document.getElementById("float-menu");
+	const floatFullscreen = document.getElementById("float-fullscreen");
 	const modal = document.getElementById("score-modal");
 	const form = document.getElementById("score-form");
 	const nick = document.getElementById("score-nick");
@@ -240,6 +385,8 @@ import Layout from "@/layouts/Layout.astro";
 		menu instanceof HTMLElement &&
 		play instanceof HTMLButtonElement &&
 		openMenu instanceof HTMLButtonElement &&
+		floatMenu instanceof HTMLButtonElement &&
+		floatFullscreen instanceof HTMLButtonElement &&
 		modal instanceof HTMLElement &&
 		form instanceof HTMLFormElement &&
 		nick instanceof HTMLInputElement &&
@@ -275,6 +422,13 @@ import Layout from "@/layouts/Layout.astro";
 			setMenu(true);
 			play.addEventListener("click", () => setMenu(false));
 			openMenu.addEventListener("click", () => setMenu(true));
+			floatMenu.addEventListener("click", () => setMenu(true));
+			floatFullscreen.addEventListener("click", () => fullscreen.click());
+			// Turning a phone upright hides the stage behind the rotate prompt, so pause into the menu.
+			const upright = window.matchMedia("(pointer: coarse) and (orientation: portrait)");
+			upright.addEventListener("change", () => {
+				if (upright.matches) setMenu(true);
+			});
 			window.addEventListener("keydown", (e) => {
 				if (e.code === "Escape") setMenu(menu.hidden);
 				else if (e.code === "Enter" && !menu.hidden && !(e.target instanceof HTMLInputElement)) setMenu(false);

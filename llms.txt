@@ -1,4 +1,4 @@
-# astro-on-cf
+# srubek
 
 > Astro (SSR) on Cloudflare Workers, with Tailwind v4 and an optional Drizzle + Neon data layer enabled by `pnpm run init-project --with-db`.
 

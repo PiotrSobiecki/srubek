@@ -14,7 +14,7 @@ export default defineConfig({
 	// The fallback is a placeholder on purpose: it is visibly wrong in a sitemap,
 	// where a plausible-looking guess would not be. Unset, the endpoints and the
 	// layout fall back to the origin the request arrived on rather than to this.
-	site: process.env.SITE_URL ?? "https://example.com",
+	site: process.env.SITE_URL ?? "https://srubek.sobiecki.org",
 	adapter: cloudflare({
 		// Left unset, the adapter picks `cloudflare-binding` and writes an
 		// `images: { binding: "IMAGES" }` into its generated config that nobody

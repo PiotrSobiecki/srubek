@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "astro-on-cf",
+	"name": "srubek",
 	"main": "@astrojs/cloudflare/entrypoints/server",
 	"compatibility_date": "2026-05-25",
 	"compatibility_flags": ["nodejs_compat"],
@@ -58,19 +58,20 @@
 	//
 	"env": {
 		"dev": {
-			"name": "astro-on-cf-dev",
+			"name": "srubek-dev",
 			"vars": {
 				"CLOUDFLARE_ENV": "dev"
 			}
 		},
 		"staging": {
-			"name": "astro-on-cf-staging",
+			"name": "srubek-staging",
 			"vars": {
 				"CLOUDFLARE_ENV": "staging"
 			}
 		},
 		"production": {
-			"name": "astro-on-cf-production",
+			"name": "srubek-production",
+			"routes": [{ "pattern": "srubek.sobiecki.org", "custom_domain": true }],
 			"vars": {
 				"CLOUDFLARE_ENV": "production"
 			}

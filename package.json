@@ -1,5 +1,5 @@
 {
-	"name": "astro-on-cf",
+	"name": "srubek",
 	"private": true,
 	"version": "0.0.0",
 	"type": "module",
@@ -66,5 +66,12 @@
 	"simple-git-hooks": {
 		"pre-commit": "pnpm run lint:ci",
 		"pre-push": "pnpm run types && pnpm run knip"
+	},
+	"devEngines": {
+		"runtime": {
+			"name": "node",
+			"version": "24.22.2",
+			"onFail": "download"
+		}
 	}
 }

@@ -78,6 +78,11 @@ function applyEvent(state: GameState, event: GameEvent): GameState {
 			return loseLife(state);
 		case "gate":
 			return { ...state, status: "boss" };
+		case "jump":
+		case "airjump":
+		case "pull":
+		case "throw":
+			return state;
 		case "hit": {
 			const battery = state.battery - 1;
 			return battery > 0 ? { ...state, battery } : loseLife(state);

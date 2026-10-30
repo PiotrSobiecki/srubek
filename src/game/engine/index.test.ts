@@ -360,3 +360,25 @@ describe("presses and the gate", () => {
 		expect(events).toContainEqual({ type: "gate" });
 	});
 });
+
+describe("feedback for the player", () => {
+	it("reports jumps, air jumps and magnet presses as events", () => {
+		const world = createWorld(FLAT);
+		settle(world);
+		expect(step(world, { ...IDLE, jump: true })).toContainEqual({ type: "jump" });
+		run(world, IDLE, 4);
+		expect(step(world, { ...IDLE, jump: true })).toContainEqual({ type: "airjump" });
+		run(world, IDLE, 120);
+		step(world, { ...IDLE, magnet: true });
+		expect(world.effects.some((e) => e.kind === "magnet")).toBe(true);
+	});
+
+	it("kicks up dust only while rolling fast on the ground", () => {
+		const world = createWorld(FLAT);
+		settle(world);
+		run(world, IDLE, 30);
+		expect(world.effects.some((e) => e.kind === "dust")).toBe(false);
+		run(world, { ...IDLE, right: true }, 40);
+		expect(world.effects.some((e) => e.kind === "dust")).toBe(true);
+	});
+});

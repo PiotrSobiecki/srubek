@@ -780,6 +780,29 @@ function drawChargeArc(ctx: Ctx, x: number, y: number, t: number, px: number, py
 	glow(ctx, px, py, 12, "rgba(79,240,224,A)", 0.35);
 }
 
+function drawDust(ctx: Ctx, x: number, y: number, t: number): void {
+	if (t > 20) return;
+	const k = t / 20;
+	for (let i = 0; i < 3; i++) {
+		const px = x + (noise(x, i, 91) - 0.5) * 6 - t * 0.3;
+		const py = y - 1 - t * 0.35 - i * 1.5;
+		glow(ctx, px, py, 2.5 + k * 5, "rgba(200,180,150,A)", (1 - k) * 0.45);
+	}
+}
+
+function drawMagnetPulse(ctx: Ctx, x: number, y: number, t: number): void {
+	if (t > 12) return;
+	const k = t / 12;
+	ctx.strokeStyle = `rgba(79,240,224,${(1 - k) * 0.9})`;
+	ctx.lineWidth = 1.5;
+	ctx.beginPath();
+	ctx.arc(x, y, 4 + k * 26, 0, Math.PI * 2);
+	ctx.stroke();
+	ctx.beginPath();
+	ctx.arc(x, y, 2 + k * 14, 0, Math.PI * 2);
+	ctx.stroke();
+}
+
 function drawEffects(ctx: Ctx, world: World, camera: number): void {
 	const p = world.player;
 	for (const e of world.effects) {
@@ -787,32 +810,43 @@ function drawEffects(ctx: Ctx, world: World, camera: number): void {
 		const x = e.x - camera;
 		if (e.kind === "burst") drawBurst(ctx, x, e.y, t);
 		else if (e.kind === "spark") drawSpark(ctx, x, e.y, t);
+		else if (e.kind === "dust") drawDust(ctx, x, e.y, t);
+		else if (e.kind === "magnet") drawMagnetPulse(ctx, p.x + p.w / 2 - camera, p.y + 6, t);
 		else drawChargeArc(ctx, x, e.y, t, p.x + p.w / 2 - camera, p.y + 4);
 	}
 }
 
-function drawLegs(ctx: Ctx, p: Player, legPhase: number): void {
-	const legs: [number, number][] = p.onGround
-		? [
-				[-3.5, legPhase * 2.5],
-				[2.5, -legPhase * 2.5],
-			]
-		: [
-				[-3.5, 1],
-				[2.5, -1.5],
-			];
-	for (const [lx, dy] of legs) {
-		rounded(ctx, lx - 1.6, -6.5 + dy * 0.3, 3.2, 5.5, 1.6);
-		ctx.fillStyle = shade(ctx, -6.5, 5.5, "#55606c", "#2b2f36");
-		ctx.fill();
+function drawWheels(ctx: Ctx, p: Player): void {
+	const roll = (p.x / 3) * p.facing;
+	// Axle bar.
+	rounded(ctx, -5.5, -6.5, 11, 3, 1.2);
+	ctx.fillStyle = shade(ctx, -6.5, 3, "#6a7682", "#2b2f36");
+	ctx.fill();
+	for (const wx of [-3.6, 3.6]) {
+		const r = 3.2;
+		ctx.fillStyle = "rgba(0,0,0,0.3)";
 		ctx.beginPath();
-		ctx.ellipse(lx, -1.2 + dy * 0.4, 3, 1.8, 0, 0, Math.PI * 2);
-		ctx.fillStyle = "#24282e";
+		ctx.ellipse(wx, 0.4, r, 1, 0, 0, Math.PI * 2);
 		ctx.fill();
-		ctx.fillStyle = "rgba(255,255,255,0.25)";
+		sphere(ctx, wx, -r, r, "#4a4d52", "#15171a");
 		ctx.beginPath();
-		ctx.ellipse(lx - 0.8, -2 + dy * 0.4, 1.4, 0.6, 0, 0, Math.PI * 2);
-		ctx.fill();
+		ctx.arc(wx, -r, r, 0, Math.PI * 2);
+		outline(ctx, 0.6);
+		// Hub and spokes show the rotation.
+		ctx.save();
+		ctx.translate(wx, -r);
+		ctx.rotate(roll);
+		ctx.strokeStyle = "#9aa3ad";
+		ctx.lineWidth = 0.8;
+		ctx.beginPath();
+		for (let i = 0; i < 3; i++) {
+			const a = (i / 3) * Math.PI * 2;
+			ctx.moveTo(0, 0);
+			ctx.lineTo(Math.cos(a) * (r - 0.8), Math.sin(a) * (r - 0.8));
+		}
+		ctx.stroke();
+		ctx.restore();
+		sphere(ctx, wx, -r, 1.1, "#e6ecf1", "#6a7682");
 	}
 }
 
@@ -866,7 +900,7 @@ function drawFlame(ctx: Ctx, frame: number): void {
 function drawSrubek(ctx: Ctx, p: Player, frame: number, camera: number): void {
 	if (p.hurtLeft > 0 && Math.floor(frame / 4) % 2 === 0) return;
 	const running = p.onGround && Math.abs(p.vx) > 0.3;
-	const bob = running ? Math.sin(frame / 3) * 0.8 : 0;
+	const bob = running ? Math.sin(frame / 2) * 0.4 : 0;
 	const legPhase = running ? Math.sin(frame / 3) : 0;
 	ctx.save();
 	ctx.translate(p.x + p.w / 2 - camera, p.y + p.h);
@@ -877,7 +911,7 @@ function drawSrubek(ctx: Ctx, p: Player, frame: number, camera: number): void {
 	ctx.scale(p.facing * ACTOR, ACTOR);
 	ctx.translate(0, bob);
 
-	drawLegs(ctx, p, legPhase);
+	drawWheels(ctx, p);
 
 	// Body: a rounded barrel with a glossy sweep, a rust dent and a chest light.
 	ctx.beginPath();

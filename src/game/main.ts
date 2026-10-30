@@ -1,5 +1,6 @@
 /** Browser entry: keyboard in, fixed-step simulation, one render per animation frame. */
 
+import { createAudio } from "@/game/audio";
 import { createWorld, type Input, step, type World } from "@/game/engine";
 import { buildLevel } from "@/game/level";
 import { createRenderer } from "@/game/render";
@@ -37,11 +38,17 @@ export function start(canvas: HTMLCanvasElement): void {
 		query.get("theme") === "stocznia" ? "stocznia" : "zlomowisko",
 	);
 
-	const onKey = (down: boolean) => (e: KeyboardEvent) => {
-		if (down && state.status !== "playing" && e.code === "Enter") {
+	const audio = createAudio();
+	const onShortcut = (code: string): void => {
+		audio.unlock();
+		if (code === "KeyM") audio.toggleMute();
+		if (code === "Enter" && state.status !== "playing") {
 			world = createWorld(level);
 			state = createState();
 		}
+	};
+	const onKey = (down: boolean) => (e: KeyboardEvent) => {
+		if (down) onShortcut(e.code);
 		const key = KEYS[e.code];
 		if (!key) return;
 		// A release waits for the next step, so even a tap shorter than a frame registers.
@@ -55,7 +62,9 @@ export function start(canvas: HTMLCanvasElement): void {
 
 	const tick = (): void => {
 		if (state.status !== "playing") return;
-		const next = applyEvents(state, step(world, input));
+		const events = step(world, input);
+		audio.react(events);
+		const next = applyEvents(state, events);
 		for (const key of released) input[key] = false;
 		released.clear();
 		if (next.respawns !== state.respawns) world = createWorld(level);

@@ -73,7 +73,7 @@ interface PickupItem extends Vec {
 
 /** A short visual, kept in the world so a test can see it and the renderer can draw it. */
 interface Effect {
-	kind: "burst" | "spark" | "charge";
+	kind: "burst" | "spark" | "charge" | "magnet" | "dust";
 	x: number;
 	y: number;
 	frame: number;
@@ -137,7 +137,11 @@ export type GameEvent =
 	| { type: "charge" }
 	| { type: "fall" }
 	| { type: "dog" }
-	| { type: "gate" };
+	| { type: "gate" }
+	| { type: "jump" }
+	| { type: "airjump" }
+	| { type: "pull" }
+	| { type: "throw" };
 
 export function createWorld(level: Level): World {
 	const w = 12;
@@ -281,7 +285,7 @@ function steer(p: Player, input: Input): void {
 	p.vx = Math.max(-c.maxRun, Math.min(c.maxRun, p.vx + dir * c.runAccel));
 }
 
-function control(p: Player, input: Input): void {
+function control(p: Player, input: Input, events: GameEvent[]): void {
 	const c = PHYSICS;
 	steer(p, input);
 
@@ -291,6 +295,7 @@ function control(p: Player, input: Input): void {
 			p.airJumps -= 1;
 			p.boostLeft = 12;
 		}
+		events.push({ type: p.onGround ? "jump" : "airjump" });
 		p.vy = c.jumpVelocity;
 		p.sy = 0;
 		p.holdLeft = c.holdFrames;
@@ -350,10 +355,13 @@ function nearestScrap(world: World): Scrap | undefined {
 }
 
 /** One press pulls the nearest scrap in; the next press throws it the way Śrubek faces. */
-function magnet(world: World, input: Input): void {
+function magnet(world: World, input: Input, events: GameEvent[]): void {
 	const p = world.player;
 	const pressed = input.magnet && !p.magnetHeld;
 	p.magnetHeld = input.magnet;
+	// Every press pulses the claw, so the key visibly does something even with no scrap near.
+	if (pressed)
+		world.effects.push({ kind: "magnet", x: p.x + p.w / 2, y: p.y + 6, frame: world.frame });
 	const held = world.scraps.find((s) => s.state === "held");
 	if (held) {
 		held.x = p.x + p.w / 2 - SCRAP / 2;
@@ -365,12 +373,16 @@ function magnet(world: World, input: Input): void {
 			held.y = p.y + p.h - SCRAP;
 			held.vx = p.facing * PHYSICS.throwVx;
 			held.vy = PHYSICS.throwVy;
+			events.push({ type: "throw" });
 		}
 		return;
 	}
 	if (!pressed) return;
 	const target = nearestScrap(world);
-	if (target) target.state = "held";
+	if (target) {
+		target.state = "held";
+		events.push({ type: "pull" });
+	}
 }
 
 /** Lands the scrap on the tile below; returns true when it is resting on a floor. */
@@ -516,14 +528,22 @@ function touchPickups(world: World, events: GameEvent[]): void {
 
 export function step(world: World, input: Input): GameEvent[] {
 	const p = world.player;
-	control(p, input);
+	const events: GameEvent[] = [];
+	control(p, input, events);
 	moveX(world);
 	moveY(world);
 	moveDrones(world);
 	moveDogs(world);
-	magnet(world, input);
-
-	const events: GameEvent[] = [];
+	magnet(world, input, events);
+	// Dust kicked up by the wheels at speed.
+	if (p.onGround && Math.abs(p.vx) > 1.6 && world.frame % 5 === 0) {
+		world.effects.push({
+			kind: "dust",
+			x: p.x + p.w / 2 - p.facing * 6,
+			y: p.y + p.h,
+			frame: world.frame,
+		});
+	}
 	moveScraps(world, events);
 	touchDrones(world, events);
 	touchDogs(world, events);

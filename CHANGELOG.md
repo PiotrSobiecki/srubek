@@ -1,3 +1,10 @@
+# [1.20.0](https://github.com/PiotrSobiecki/srubek/compare/v1.19.2...v1.20.0) (2026-10-30)
+
+
+### Features
+
+* ekran po pokonaniu bossa i krótszy zasięg magnesu ([cb059c8](https://github.com/PiotrSobiecki/srubek/commit/cb059c814baee90988bacf21394eb78c0cc01024))
+
 ## [1.19.2](https://github.com/PiotrSobiecki/srubek/compare/v1.19.1...v1.19.2) (2026-10-30)
 
 

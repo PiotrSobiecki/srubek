@@ -125,28 +125,78 @@ import Layout from "@/layouts/Layout.astro";
 		border-radius: 0;
 		box-shadow: none;
 	}
-	#stage.is-fullscreen .pad {
-		grid-template-columns: 4.6rem 4.6rem 1fr 4rem 4rem 4.6rem;
-		grid-template-rows: 4rem 4rem;
-		gap: 0.6rem;
-		padding: 0 max(0.8rem, env(safe-area-inset-left)) max(0.8rem, env(safe-area-inset-bottom))
-			max(0.8rem, env(safe-area-inset-right));
-	}
-	#stage.is-fullscreen .pad-btn {
-		font-size: 1.9rem;
-	}
-
-	/* On-screen pad: movement bottom-left, actions bottom-right. */
+	/* Touch controls: the stage's halves are the stick and the jump button, actions sit on the right edge. */
 	.pad {
 		position: absolute;
-		inset: auto 0 0 0;
-		display: grid;
-		grid-template-areas: "l r . z c j" "l r . a x j";
-		grid-template-columns: 4rem 4rem 1fr 3.4rem 3.4rem 4rem;
-		grid-template-rows: 3.4rem 3.4rem;
-		gap: 0.5rem;
-		padding: 0 0.6rem max(0.6rem, env(safe-area-inset-bottom)) 0.6rem;
+		inset: 0;
 		pointer-events: none;
+	}
+	.zone {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		pointer-events: auto;
+		touch-action: none;
+		-webkit-tap-highlight-color: transparent;
+	}
+	.zone-move {
+		left: 0;
+		width: 45%;
+	}
+	.zone-jump {
+		right: 0;
+		width: 55%;
+	}
+	.zone-label {
+		position: absolute;
+		bottom: max(0.8rem, env(safe-area-inset-bottom));
+		left: 50%;
+		transform: translateX(-50%);
+		white-space: nowrap;
+		pointer-events: none;
+		font-family: "Bangers", "Impact", sans-serif;
+		font-size: 1.1rem;
+		letter-spacing: 0.05em;
+		color: rgba(255, 233, 168, 0.8);
+		text-shadow: 0 2px 0 #000;
+		transition: opacity 0.6s;
+	}
+	.pad.learned .zone-label {
+		opacity: 0;
+	}
+	.stick,
+	.knob {
+		position: absolute;
+		display: none;
+		border-radius: 999px;
+		transform: translate(-50%, -50%);
+		pointer-events: none;
+	}
+	.stick {
+		width: 6rem;
+		height: 6rem;
+		border: 2px solid rgba(255, 210, 120, 0.45);
+		background: rgba(20, 16, 30, 0.3);
+	}
+	.knob {
+		width: 2.8rem;
+		height: 2.8rem;
+		background: rgba(255, 180, 70, 0.7);
+	}
+	.zone-move.is-down .stick,
+	.zone-move.is-down .knob {
+		display: block;
+	}
+	.actions {
+		position: absolute;
+		right: max(0.6rem, env(safe-area-inset-right));
+		top: 50%;
+		transform: translateY(-50%);
+		display: grid;
+		grid-template-columns: repeat(2, 3.2rem);
+		grid-auto-rows: 3.2rem;
+		gap: 0.5rem;
+		pointer-events: auto;
 	}
 	.pad-btn {
 		pointer-events: auto;
@@ -270,9 +320,17 @@ import Layout from "@/layouts/Layout.astro";
 		}
 	}
 
+	/* Double taps must not zoom the page; iOS also zooms into any field under 16px. */
+	html {
+		touch-action: manipulation;
+	}
 	@media (pointer: coarse) {
 		.float-btns {
 			display: flex;
+		}
+		input,
+		select {
+			font-size: 16px !important;
 		}
 	}
 	@media (pointer: coarse) and (orientation: portrait) {
@@ -311,13 +369,6 @@ import Layout from "@/layouts/Layout.astro";
 			border-radius: 0;
 			box-shadow: none;
 		}
-		#stage .pad {
-			grid-template-columns: 3.6rem 3.6rem 1fr 3.1rem 3.1rem 3.6rem;
-			grid-template-rows: 3.1rem 3.1rem;
-			gap: 0.45rem;
-			padding: 0 max(0.5rem, env(safe-area-inset-left)) max(0.5rem, env(safe-area-inset-bottom))
-				max(0.5rem, env(safe-area-inset-right));
-		}
 		.menu {
 			border-radius: 0;
 		}
@@ -350,7 +401,7 @@ import Layout from "@/layouts/Layout.astro";
 
 <script>
 	import { mountBoard } from "@/board";
-	import { mountFullscreen, mountMouse, mountPad, touchDevice } from "@/controls";
+	import { mountFullscreen, mountMouse, mountPad, preventPageZoom, touchDevice } from "@/controls";
 	import { type Game, start } from "@/game/main";
 	import { mountWardrobe } from "@/wardrobe";
 
@@ -402,6 +453,7 @@ import Layout from "@/layouts/Layout.astro";
 		let game: Game | undefined;
 		const board = mountBoard({ modal, form, nick, note }, (rows) => game?.setBoard(rows));
 		mountFullscreen(stage, fullscreen);
+		if (touchDevice()) preventPageZoom();
 		// The canvas draws its own text, so the font must be in before the first frame.
 		document.fonts.load("20px Bangers").finally(() => {
 			game = start(canvas, { onEnd: (state) => board.offer(state), onRestart: () => board.hide() });

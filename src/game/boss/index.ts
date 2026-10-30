@@ -7,8 +7,15 @@
 import { type GameEvent, hurt, type World } from "@/game/engine";
 import { ROWS, TILE } from "@/game/level";
 
-export type BossBody = "prasa" | "dron-matka" | "pies-alfa" | "dzwig";
-export type BossAttack = "opad" | "drony" | "szarza" | "strzal";
+export type BossBody =
+	| "prasa"
+	| "dron-matka"
+	| "pies-alfa"
+	| "dzwig"
+	| "koparka"
+	| "zgniatarka"
+	| "wieza";
+export type BossAttack = "opad" | "drony" | "szarza" | "strzal" | "zamach" | "zgniot" | "laser";
 export type BossWeakSpot = "rdzen" | "antena" | "grzbiet";
 
 export interface BossSpec {
@@ -36,7 +43,10 @@ type BossPhase =
 	| "turn"
 	| "volley"
 	| "cool"
-	| "dip";
+	| "dip"
+	| "sweep"
+	| "slide"
+	| "beam";
 
 export interface Boss {
 	spec: BossSpec;
@@ -53,6 +63,8 @@ export interface Boss {
 	dir: 1 | -1;
 	/** Shots left in the current volley. */
 	ammo: number;
+	/** Progress of a sweep or beam, 0..1. */
+	aux: number;
 }
 
 /** Which attacks and weak spots a body can carry. */
@@ -61,7 +73,17 @@ const BODIES: Record<BossBody, { attacks: BossAttack[]; weakSpots: BossWeakSpot[
 	"dron-matka": { attacks: ["drony", "strzal"], weakSpots: ["antena"] },
 	"pies-alfa": { attacks: ["szarza"], weakSpots: ["grzbiet"] },
 	dzwig: { attacks: ["opad", "strzal"], weakSpots: ["rdzen", "antena"] },
+	koparka: { attacks: ["zamach", "strzal"], weakSpots: ["rdzen"] },
+	zgniatarka: { attacks: ["zgniot", "opad"], weakSpots: ["grzbiet"] },
+	wieza: { attacks: ["laser", "drony"], weakSpots: ["antena"] },
 };
+
+/** Bodies that live on the arena floor instead of hovering. */
+const GROUNDED: readonly BossBody[] = ["pies-alfa", "koparka", "wieza"];
+
+function grounded(spec: BossSpec): boolean {
+	return GROUNDED.includes(spec.body);
+}
 
 export function bossKey(body: BossBody, attack: BossAttack, weakSpot: BossWeakSpot): string {
 	return `${body}/${attack}/${weakSpot}`;
@@ -120,17 +142,19 @@ const SIZES: Record<BossBody, { w: number; h: number }> = {
 	"dron-matka": { w: 44, h: 30 },
 	"pies-alfa": { w: 56, h: 26 },
 	dzwig: { w: 36, h: 32 },
+	koparka: { w: 60, h: 34 },
+	zgniatarka: { w: 52, h: 30 },
+	wieza: { w: 30, h: 60 },
 };
 
 export function createBoss(spec: BossSpec, arenaWidthTiles: number): Boss {
 	const { w, h } = SIZES[spec.body];
 	const topY = 12;
 	const floorY = (ROWS - 2) * TILE - h;
-	const grounded = spec.attack === "szarza";
 	return {
 		spec,
 		x: (arenaWidthTiles * TILE) / 2 - w / 2,
-		y: grounded ? floorY : topY,
+		y: grounded(spec) ? floorY : topY,
 		w,
 		h,
 		topY,
@@ -141,6 +165,7 @@ export function createBoss(spec: BossSpec, arenaWidthTiles: number): Boss {
 		alive: true,
 		dir: -1,
 		ammo: 0,
+		aux: 0,
 	};
 }
 
@@ -185,14 +210,25 @@ function track(boss: Boss, world: World): void {
 			boss.ammo = 2;
 			boss.timer = 0;
 			break;
+		case "zamach":
+			boss.phase = "sweep";
+			boss.aux = 0;
+			break;
+		case "zgniot":
+			boss.phase = "drop";
+			break;
+		case "laser":
+			boss.phase = "beam";
+			boss.aux = 0;
+			break;
 	}
 }
 
 function drop(boss: Boss, world: World, events: GameEvent[]): void {
 	boss.y = Math.min(boss.floorY, boss.y + boss.spec.dropSpeed);
 	if (boss.y < boss.floorY) return;
-	boss.phase = "slam";
-	boss.timer = boss.spec.openFrames;
+	boss.phase = boss.spec.attack === "zgniot" ? "slide" : "slam";
+	boss.timer = boss.spec.attack === "zgniot" ? 70 : boss.spec.openFrames;
 	world.effects.push({
 		kind: "quake",
 		x: boss.x + boss.w / 2,
@@ -268,12 +304,114 @@ function dip(boss: Boss): void {
 	boss.phase = "rise";
 }
 
+/** Grounded bosses face the player and count down to their attack in place. */
+function waitOnGround(boss: Boss, world: World): void {
+	const p = world.player;
+	boss.dir = p.x + p.w / 2 < boss.x + boss.w / 2 ? -1 : 1;
+	if (boss.timer-- > 0) return;
+	switch (boss.spec.attack) {
+		case "szarza":
+			boss.phase = "charge";
+			break;
+		case "zamach":
+			boss.phase = "sweep";
+			boss.aux = 0;
+			break;
+		case "laser":
+			boss.phase = "beam";
+			boss.aux = 0;
+			break;
+		default:
+			boss.phase = "volley";
+			boss.ammo = boss.spec.attack === "drony" ? 2 : 3;
+			boss.timer = 0;
+	}
+}
+
+/** Where the excavator's bucket is during a sweep: it swings out to the far wall and back. */
+export function bucketBox(
+	boss: Boss,
+	world: World,
+): { x: number; y: number; w: number; h: number } {
+	const reach = boss.dir > 0 ? arenaWidth(world) - TILE - (boss.x + boss.w) : boss.x - TILE;
+	const k = Math.sin(boss.aux * Math.PI);
+	const bx = boss.dir > 0 ? boss.x + boss.w + k * (reach - 16) : boss.x - 16 - k * (reach - 16);
+	return { x: bx, y: boss.y + boss.h - 14, w: 16, h: 14 };
+}
+
+function sweep(boss: Boss, world: World, events: GameEvent[]): void {
+	boss.aux = Math.min(1, boss.aux + 1 / 70);
+	const p = world.player;
+	const b = bucketBox(boss, world);
+	if (p.x < b.x + b.w && p.x + p.w > b.x && p.y < b.y + b.h && p.y + p.h > b.y) {
+		hurt(p, b.x + b.w / 2, events);
+	}
+	if (boss.aux < 1) return;
+	boss.phase = "cool";
+	boss.timer = boss.spec.openFrames;
+	world.effects.push({
+		kind: "quake",
+		x: boss.x + boss.w / 2,
+		y: boss.y + boss.h,
+		frame: world.frame,
+	});
+	events.push({ type: "slam" });
+}
+
+function slide(boss: Boss, world: World, events: GameEvent[]): void {
+	boss.x += boss.dir * boss.spec.chargeSpeed;
+	const left = TILE;
+	const right = arenaWidth(world) - TILE - boss.w;
+	if (boss.x <= left || boss.x >= right) boss.dir = boss.dir > 0 ? -1 : 1;
+	boss.x = Math.max(left, Math.min(right, boss.x));
+	if (boss.timer-- > 0) return;
+	boss.phase = "stun";
+	boss.timer = boss.spec.openFrames;
+	world.effects.push({
+		kind: "quake",
+		x: boss.x + boss.w / 2,
+		y: boss.y + boss.h,
+		frame: world.frame,
+	});
+	events.push({ type: "slam" });
+}
+
+/** The tower's beam: from its lamp down to the floor, sweeping from one side to the other. */
+export function beamEnd(boss: Boss, world: World): { x: number; y: number } {
+	const angle = (-0.6 + boss.aux * 1.2) * Math.PI * (boss.dir > 0 ? 1 : -1);
+	const top = { x: boss.x + boss.w / 2, y: boss.y + 8 };
+	const floor = (ROWS - 2) * TILE;
+	const len = (floor - top.y) / Math.max(0.2, Math.cos(angle));
+	return { x: Math.max(0, Math.min(arenaWidth(world), top.x + Math.sin(angle) * len)), y: floor };
+}
+
+function beam(boss: Boss, world: World, events: GameEvent[]): void {
+	boss.aux = Math.min(1, boss.aux + 1 / 100);
+	const p = world.player;
+	const a = { x: boss.x + boss.w / 2, y: boss.y + 8 };
+	const b = beamEnd(boss, world);
+	// Distance from the player's centre to the beam segment.
+	const cx = p.x + p.w / 2;
+	const cy = p.y + p.h / 2;
+	const dx = b.x - a.x;
+	const dy = b.y - a.y;
+	const t = Math.max(
+		0,
+		Math.min(1, ((cx - a.x) * dx + (cy - a.y) * dy) / (dx * dx + dy * dy || 1)),
+	);
+	const dist = Math.hypot(cx - (a.x + dx * t), cy - (a.y + dy * t));
+	if (dist < 8) hurt(p, cx + (boss.dir > 0 ? -1 : 1), events);
+	if (boss.aux < 1) return;
+	boss.phase = "cool";
+	boss.timer = boss.spec.openFrames;
+}
+
 function touch(boss: Boss, world: World, events: GameEvent[]): void {
 	const p = world.player;
 	const overlapping =
 		p.x < boss.x + boss.w && p.x + p.w > boss.x && p.y < boss.y + boss.h && p.y + p.h > boss.y;
 	if (!overlapping) return;
-	if (boss.phase === "drop" || boss.phase === "charge") {
+	if (boss.phase === "drop" || boss.phase === "charge" || boss.phase === "slide") {
 		hurt(p, boss.x + boss.w / 2, events);
 		return;
 	}
@@ -290,7 +428,7 @@ export function damageBoss(boss: Boss, world: World, events: GameEvent[]): void 
 	world.effects.push({ kind: "burst", x: boss.x + boss.w / 2, y: boss.y, frame: world.frame });
 	if (boss.hp > 0) {
 		// Stunned: the boss backs off right away.
-		boss.phase = boss.spec.attack === "szarza" ? "turn" : "rise";
+		boss.phase = grounded(boss.spec) ? "turn" : "rise";
 		boss.timer = boss.spec.waitFrames;
 		events.push({ type: "bossHit" });
 		return;
@@ -323,7 +461,7 @@ export function stepBoss(world: World, events: GameEvent[]): void {
 	if (!boss || !boss.alive) return;
 	switch (boss.phase) {
 		case "track":
-			if (boss.spec.attack === "szarza") boss.phase = boss.timer-- > 0 ? "track" : "charge";
+			if (grounded(boss.spec)) waitOnGround(boss, world);
 			else track(boss, world);
 			break;
 		case "drop":
@@ -332,7 +470,16 @@ export function stepBoss(world: World, events: GameEvent[]): void {
 		case "slam":
 		case "stun":
 		case "cool":
-			if (boss.timer-- <= 0) boss.phase = boss.spec.attack === "szarza" ? "turn" : "rise";
+			if (boss.timer-- <= 0) boss.phase = grounded(boss.spec) ? "turn" : "rise";
+			break;
+		case "sweep":
+			sweep(boss, world, events);
+			break;
+		case "slide":
+			slide(boss, world, events);
+			break;
+		case "beam":
+			beam(boss, world, events);
 			break;
 		case "rise":
 			rise(boss);

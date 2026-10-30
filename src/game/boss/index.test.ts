@@ -51,10 +51,12 @@ function openUp(world: World, boss: Boss): void {
 describe("the pool", () => {
 	it("holds only allowed body–attack pairs and at least seven triples", () => {
 		const pool = bossPool();
-		expect(pool.length).toBeGreaterThanOrEqual(7);
+		expect(pool.length).toBeGreaterThanOrEqual(13);
 		for (const [body, attack] of pool) {
 			if (body === "pies-alfa") expect(attack).toBe("szarza");
-			if (attack === "drony") expect(body).toBe("dron-matka");
+			if (attack === "drony") expect(["dron-matka", "wieza"]).toContain(body);
+			if (attack === "laser") expect(body).toBe("wieza");
+			if (attack === "zamach") expect(body).toBe("koparka");
 		}
 	});
 
@@ -206,5 +208,62 @@ describe("scrap and the mega ball against a boss", () => {
 		const events = run(world, 20);
 		expect(events.some((e) => e.type === "bossHit")).toBe(true);
 		expect(world.megas).toHaveLength(0);
+	});
+});
+
+describe("koparka / zamach", () => {
+	it("stands on the floor and swings the bucket across, hurting what it meets", () => {
+		const [world, boss] = arena("koparka", "zamach", "rdzen");
+		expect(boss.y).toBe(boss.floorY);
+		const p = world.player;
+		p.x = boss.x - 60;
+		p.y = boss.floorY + boss.h - p.h;
+		let hit = false;
+		for (let i = 0; i < 400 && !hit; i++) {
+			hit = step(world, IDLE).some((e) => e.type === "hit");
+		}
+		expect(hit).toBe(true);
+		expect(boss.phase).toBe("sweep");
+		openUp(world, boss);
+		expect(boss.phase).toBe("cool");
+	});
+});
+
+describe("zgniatarka / zgniot", () => {
+	it("drops, slides along the floor and then stuns with its back bare", () => {
+		const [world, boss] = arena("zgniatarka", "zgniot", "grzbiet");
+		world.player.x = 400;
+		const phases = new Set<string>();
+		for (let i = 0; i < 500 && !coreOpen(boss); i++) {
+			step(world, IDLE);
+			phases.add(boss.phase);
+		}
+		expect(phases.has("slide")).toBe(true);
+		expect(boss.phase).toBe("stun");
+	});
+
+	it("hurts Śrubek in the slide", () => {
+		const [world, boss] = arena("zgniatarka", "zgniot", "grzbiet");
+		boss.phase = "slide";
+		boss.y = boss.floorY;
+		boss.timer = 70;
+		boss.dir = -1;
+		world.player.x = boss.x - 20;
+		world.player.y = boss.floorY + boss.h - world.player.h;
+		expect(run(world, 20).some((e) => e.type === "hit")).toBe(true);
+	});
+});
+
+describe("wieża / laser", () => {
+	it("sweeps a beam over the floor that burns Śrubek, then cools with the antenna bare", () => {
+		const [world, boss] = arena("wieza", "laser", "antena");
+		expect(boss.y).toBe(boss.floorY);
+		world.player.x = boss.x + boss.w + 60;
+		world.player.y = boss.floorY + boss.h - world.player.h;
+		let hit = false;
+		for (let i = 0; i < 400 && !hit; i++) hit = step(world, IDLE).some((e) => e.type === "hit");
+		expect(hit).toBe(true);
+		openUp(world, boss);
+		expect(boss.phase).toBe("cool");
 	});
 });

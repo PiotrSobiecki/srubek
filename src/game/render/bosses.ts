@@ -3,7 +3,8 @@
  * motion. Positions come from the boss object; everything else is drawn here.
  */
 
-import { type Boss, coreOpen } from "@/game/boss";
+import { type Boss, beamEnd, bucketBox, coreOpen } from "@/game/boss";
+import type { World } from "@/game/engine";
 import { VIEW_W } from "@/game/engine";
 import {
 	type Ctx,
@@ -25,6 +26,9 @@ export const BOSS_NAMES: Record<Boss["spec"]["body"], string> = {
 	"dron-matka": "DRON-MATKA",
 	"pies-alfa": "PIES-ALFA",
 	dzwig: "DŹWIG ZŁOMOWY",
+	koparka: "KOPARKA",
+	zgniatarka: "ZGNIATARKA",
+	wieza: "WIEŻA STRAŻNICZA",
 };
 
 /** The weak spot: a glass dome, an antenna bulb or a back vent, red when bare. */
@@ -398,7 +402,235 @@ function drawCrane(ctx: Ctx, boss: Boss, frame: number, x: number, y: number): v
 	drawWeakSpot(ctx, boss, cx, y, frame);
 }
 
-export function drawBoss(ctx: Ctx, boss: Boss, frame: number, camera: number): void {
+// ── koparka: green excavator with a swinging bucket ───────────────────
+
+function drawExcavator(
+	ctx: Ctx,
+	boss: Boss,
+	world: World,
+	frame: number,
+	x: number,
+	y: number,
+): void {
+	const w = boss.w;
+	const floor = y + boss.h;
+	ctx.fillStyle = "rgba(0,0,0,0.3)";
+	ctx.beginPath();
+	ctx.ellipse(x + w / 2, floor + 1, w / 2, 3, 0, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.save();
+	ctx.translate(x + w / 2, floor);
+	ctx.scale(boss.dir, 1);
+	// Tracks with rolling treads.
+	rounded(ctx, -w / 2 + 2, -12, w - 4, 12, 6);
+	ctx.fillStyle = shade(ctx, -12, 12, "#4a535d", "#1e2227");
+	ctx.fill();
+	outline(ctx, 1);
+	ctx.fillStyle = "#8d939b";
+	const roll = (frame / 2) % 6;
+	for (let i = 0; i < (w - 8) / 6; i++) ctx.fillRect(-w / 2 + 4 + i * 6 + roll, -11, 2, 10);
+	for (const rx of [-w / 2 + 10, 0, w / 2 - 10]) sphere(ctx, rx, -6, 3.5, "#c9d2da", "#4a535d");
+	// Body and cab.
+	rounded(ctx, -w / 2 + 6, -30, w - 12, 18, 3);
+	ctx.fillStyle = shade(ctx, -30, 18, "#7bc043", "#2f5a18");
+	ctx.fill();
+	outline(ctx, 1);
+	rim(ctx, 0.35);
+	rounded(ctx, 4, -42, 18, 14, 3);
+	ctx.fillStyle = shade(ctx, -42, 14, "#9ad15e", "#2f5a18");
+	ctx.fill();
+	outline(ctx, 1);
+	ctx.fillStyle = "#9fd8ff";
+	ctx.fillRect(7, -40, 12, 7);
+	ctx.fillStyle = "rgba(255,255,255,0.5)";
+	ctx.fillRect(8, -39, 4, 2);
+	// Exhaust stack with smoke.
+	ctx.fillStyle = "#2b2f36";
+	ctx.fillRect(-w / 2 + 10, -40, 4, 10);
+	puff(ctx, -w / 2 + 12, -40, frame, "rgba(90,90,100,A)");
+	ctx.restore();
+	// Arm: boom from the cab to the bucket, drawn in world space.
+	const b =
+		boss.phase === "sweep"
+			? bucketBox(boss, world)
+			: { x: x + w / 2 + boss.dir * 30 - 8, y: floor - 26, w: 16, h: 14 };
+	const bx = b.x - (world.camera | 0);
+	const shoulder = { x: x + w / 2 + boss.dir * 10, y: floor - 36 };
+	const elbow = { x: (shoulder.x + bx + 8) / 2, y: Math.min(shoulder.y, b.y) - 18 };
+	ctx.strokeStyle = "#2f5a18";
+	ctx.lineWidth = 6;
+	ctx.lineCap = "round";
+	ctx.beginPath();
+	ctx.moveTo(shoulder.x, shoulder.y);
+	ctx.lineTo(elbow.x, elbow.y);
+	ctx.lineTo(bx + 8, b.y + 2);
+	ctx.stroke();
+	ctx.strokeStyle = "#9ad15e";
+	ctx.lineWidth = 1.5;
+	ctx.beginPath();
+	ctx.moveTo(shoulder.x, shoulder.y - 1.5);
+	ctx.lineTo(elbow.x, elbow.y - 1.5);
+	ctx.stroke();
+	// Hydraulic ram along the boom.
+	ctx.strokeStyle = "#c9d2da";
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.moveTo(shoulder.x + boss.dir * 4, shoulder.y - 8);
+	ctx.lineTo(elbow.x, elbow.y + 6);
+	ctx.stroke();
+	// Bucket with teeth.
+	rounded(ctx, bx, b.y, b.w, b.h, 2);
+	ctx.fillStyle = shade(ctx, b.y, b.h, "#8d939b", "#2b2f36");
+	ctx.fill();
+	outline(ctx, 1);
+	ctx.fillStyle = "#c9d2da";
+	for (let i = 0; i < 4; i++) {
+		ctx.beginPath();
+		ctx.moveTo(bx + 1 + i * 4, b.y + b.h);
+		ctx.lineTo(bx + 3 + i * 4, b.y + b.h + 3);
+		ctx.lineTo(bx + 5 + i * 4, b.y + b.h);
+		ctx.closePath();
+		ctx.fill();
+	}
+	if (boss.phase === "sweep") glow(ctx, bx + 8, b.y + 10, 12, "rgba(255,170,60,A)", 0.4);
+	drawWeakSpot(ctx, boss, x + w / 2 + boss.dir * 13, floor - 44, frame);
+}
+
+// ── zgniatarka: grey crusher with jaws ───────────────────────────────
+
+function drawCrusher(ctx: Ctx, boss: Boss, frame: number, x: number, y: number): void {
+	const w = boss.w;
+	const h = boss.h;
+	const cx = x + w / 2;
+	const jaw = boss.phase === "slide" ? Math.abs(Math.sin(frame / 3)) * 6 : 2;
+	// Rails above and the lifting arms.
+	ctx.fillStyle = "#3a3f49";
+	ctx.fillRect(0, 2, VIEW_W, 3);
+	for (const px of [x + 10, x + w - 14]) {
+		ctx.fillStyle = shade(ctx, 0, y + 4, "#8d939b", "#3a3f49");
+		ctx.fillRect(px, 0, 4, y + 4);
+	}
+	ctx.fillStyle = "rgba(0,0,0,0.3)";
+	ctx.beginPath();
+	ctx.ellipse(cx, boss.floorY + h + 1, w / 2, 3, 0, 0, Math.PI * 2);
+	ctx.fill();
+	// Housing with rivets and a mesh grille.
+	panel(ctx, x, y + 4, w, h - 12, "#9aa6b2", "#3f4852");
+	ctx.fillStyle = "#1e2227";
+	ctx.fillRect(x + 8, y + 9, w - 16, 9);
+	ctx.strokeStyle = "#5a646e";
+	ctx.lineWidth = 0.8;
+	ctx.beginPath();
+	for (let i = 0; i < (w - 16) / 4; i++) {
+		ctx.moveTo(x + 8 + i * 4, y + 9);
+		ctx.lineTo(x + 8 + i * 4, y + 18);
+	}
+	ctx.stroke();
+	// Two toothed jaws that gnash while sliding.
+	for (const side of [-1, 1]) {
+		const jx = cx + side * (w / 2 - 6) - 6;
+		rounded(ctx, jx, y + h - 10 + jaw * (side < 0 ? 0 : 0), 12, 8, 2);
+		ctx.fillStyle = shade(ctx, y + h - 10, 8, "#c9d2da", "#4a535d");
+		ctx.fill();
+		outline(ctx, 1);
+		ctx.fillStyle = "#e6ecf1";
+		for (let i = 0; i < 3; i++) {
+			ctx.beginPath();
+			ctx.moveTo(jx + 1 + i * 4, y + h - 2);
+			ctx.lineTo(jx + 3 + i * 4, y + h + 3 + jaw);
+			ctx.lineTo(jx + 5 + i * 4, y + h - 2);
+			ctx.closePath();
+			ctx.fill();
+		}
+	}
+	// Rollers under the housing.
+	for (const rx of [x + 12, cx, x + w - 12]) {
+		sphere(ctx, rx, y + h - 6, 4, "#5a646e", "#1e2227");
+		ctx.strokeStyle = "#8d939b";
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(rx, y + h - 6);
+		ctx.lineTo(rx + Math.cos(frame / 4) * 3, y + h - 6 + Math.sin(frame / 4) * 3);
+		ctx.stroke();
+	}
+	// Warning strobe.
+	const strobe = boss.phase === "drop" || boss.phase === "slide";
+	glow(ctx, cx, y + 6, 10, "rgba(255,60,40,A)", strobe && frame % 10 < 5 ? 0.8 : 0.1);
+	sphere(ctx, cx, y + 6, 2.2, strobe ? "#ffb0a0" : "#8a2a1a", "#5a1a10");
+	drawWeakSpot(ctx, boss, cx, y, frame);
+}
+
+// ── wieża strażnicza: steel watchtower with a sweeping laser ─────────
+
+function drawTower(ctx: Ctx, boss: Boss, world: World, frame: number, x: number, y: number): void {
+	const w = boss.w;
+	const h = boss.h;
+	const cx = x + w / 2;
+	const floor = y + h;
+	ctx.fillStyle = "rgba(0,0,0,0.3)";
+	ctx.beginPath();
+	ctx.ellipse(cx, floor + 1, w / 2 + 6, 3, 0, 0, Math.PI * 2);
+	ctx.fill();
+	// Lattice legs and a base plate.
+	ctx.strokeStyle = "#4a535d";
+	ctx.lineWidth = 2.5;
+	ctx.beginPath();
+	ctx.moveTo(cx - w / 2 - 4, floor);
+	ctx.lineTo(cx - 6, y + 22);
+	ctx.moveTo(cx + w / 2 + 4, floor);
+	ctx.lineTo(cx + 6, y + 22);
+	ctx.stroke();
+	ctx.strokeStyle = "#8d939b";
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	for (let i = 0; i < 5; i++) {
+		const t = i / 5;
+		const lx = cx - w / 2 - 4 + (w / 2 - 2) * t;
+		const rx = cx + w / 2 + 4 - (w / 2 - 2) * t;
+		const ly = floor - (floor - y - 22) * t;
+		ctx.moveTo(lx, ly);
+		ctx.lineTo(rx, ly - 6);
+		ctx.moveTo(rx, ly);
+		ctx.lineTo(lx, ly - 6);
+	}
+	ctx.stroke();
+	rounded(ctx, cx - w / 2 - 6, floor - 4, w + 12, 4, 1);
+	ctx.fillStyle = "#3a3f49";
+	ctx.fill();
+	// Cabin with a searchlight dome and camera eyes.
+	panel(ctx, cx - w / 2, y + 8, w, 18, "#8893a0", "#2f363d");
+	ctx.fillStyle = "#1e2227";
+	ctx.fillRect(cx - w / 2 + 3, y + 12, w - 6, 6);
+	for (const ex of [-8, 0, 8]) {
+		glow(ctx, cx + ex, y + 15, 5, "rgba(255,70,50,A)", 0.5);
+		sphere(ctx, cx + ex, y + 15, 2, "#ffb0a0", "#c8231a");
+	}
+	ctx.beginPath();
+	ctx.arc(cx, y + 8, 9, Math.PI, 0);
+	ctx.closePath();
+	ctx.fillStyle = shade(ctx, y - 1, 9, "#c9d2da", "#4a535d");
+	ctx.fill();
+	outline(ctx, 1);
+	// The beam.
+	if (boss.phase === "beam") {
+		const end = beamEnd(boss, world);
+		const ex = end.x - (world.camera | 0);
+		glow(ctx, cx, y + 8, 14, "rgba(255,80,60,A)", 0.7);
+		ctx.strokeStyle = "rgba(255,90,70,0.35)";
+		ctx.lineWidth = 9;
+		ctx.beginPath();
+		ctx.moveTo(cx, y + 8);
+		ctx.lineTo(ex, end.y);
+		ctx.stroke();
+		ctx.strokeStyle = "#ffd0c0";
+		ctx.lineWidth = 2;
+		ctx.stroke();
+		glow(ctx, ex, end.y, 10, "rgba(255,120,60,A)", 0.6);
+	}
+	drawWeakSpot(ctx, boss, cx, y - 2, frame);
+}
+
+export function drawBoss(ctx: Ctx, boss: Boss, frame: number, camera: number, world: World): void {
 	if (!boss.alive) return;
 	const bx = Math.round(boss.x - camera);
 	const by = Math.round(boss.y);
@@ -411,6 +643,15 @@ export function drawBoss(ctx: Ctx, boss: Boss, frame: number, camera: number): v
 			break;
 		case "dzwig":
 			drawCrane(ctx, boss, frame, bx, by);
+			break;
+		case "koparka":
+			drawExcavator(ctx, boss, world, frame, bx, by);
+			break;
+		case "zgniatarka":
+			drawCrusher(ctx, boss, frame, bx, by);
+			break;
+		case "wieza":
+			drawTower(ctx, boss, world, frame, bx, by);
 			break;
 		default:
 			drawPress(ctx, boss, frame, bx, by);

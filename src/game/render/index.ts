@@ -1300,7 +1300,7 @@ function drawProjectiles(ctx: Ctx, world: World, camera: number): void {
 }
 
 function drawActors(ctx: Ctx, world: World, camera: number): void {
-	if (world.boss) drawBoss(ctx, world.boss, world.frame, camera);
+	if (world.boss) drawBoss(ctx, world.boss, world.frame, camera, world);
 	const frame = world.frame;
 	for (const c of world.level.chargers) drawCharger(ctx, c.x * TILE - camera, c.y * TILE, frame);
 	for (const g of world.level.gates) drawGate(ctx, g.x * TILE - camera, (g.y - 2) * TILE, frame);

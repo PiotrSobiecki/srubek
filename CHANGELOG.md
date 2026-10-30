@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/PiotrSobiecki/srubek/compare/v1.11.0...v1.12.0) (2026-10-30)
+
+
+### Features
+
+* tablica wyników w D1 z bramką wiarygodności ([91e1585](https://github.com/PiotrSobiecki/srubek/commit/91e15859be10ad56f394329ddf10870d8c24325c))
+
 # [1.11.0](https://github.com/PiotrSobiecki/srubek/compare/v1.10.1...v1.11.0) (2026-10-30)
 
 

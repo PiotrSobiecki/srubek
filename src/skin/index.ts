@@ -4,9 +4,17 @@
  * validation and storage.
  */
 
-export type Hat = "none" | "antena" | "kask" | "czapka" | "korona" | "cylinder";
-export type Accessory = "none" | "szalik" | "plecak" | "pelerynka" | "okulary";
-export type HandItem = "none" | "klucz" | "mlotek" | "flaga" | "lizak" | "balonik" | "parasol";
+export type Hat = "none" | "antena" | "kask" | "czapka" | "daszek" | "korona" | "cylinder";
+export type Accessory = "none" | "szalik" | "plecak" | "pelerynka" | "okulary" | "skrzydelka";
+export type HandItem =
+	| "none"
+	| "klucz"
+	| "mlotek"
+	| "miecz"
+	| "flaga"
+	| "lizak"
+	| "balonik"
+	| "parasol";
 
 export interface Skin {
 	/** Light, mid and dark of the shell. */
@@ -19,19 +27,29 @@ export interface Skin {
 	hand: HandItem;
 }
 
-export const HATS: readonly Hat[] = ["antena", "kask", "czapka", "korona", "cylinder", "none"];
+export const HATS: readonly Hat[] = [
+	"antena",
+	"kask",
+	"czapka",
+	"daszek",
+	"korona",
+	"cylinder",
+	"none",
+];
 export const ACCESSORIES: readonly Accessory[] = [
 	"none",
 	"szalik",
 	"plecak",
 	"pelerynka",
 	"okulary",
+	"skrzydelka",
 ];
 
 export const HANDS: readonly HandItem[] = [
 	"none",
 	"klucz",
 	"mlotek",
+	"miecz",
 	"flaga",
 	"lizak",
 	"balonik",
@@ -96,6 +114,22 @@ export const PRESETS: Record<string, Skin> = {
 		hat: "kask",
 		accessory: "none",
 		hand: "klucz",
+	},
+	Rycerz: {
+		body: "#9aa3ad",
+		eyes: "#4ff0e0",
+		accent: "#c0392b",
+		hat: "kask",
+		accessory: "pelerynka",
+		hand: "miecz",
+	},
+	Sportowiec: {
+		body: "#3d6e9e",
+		eyes: "#f4f8ff",
+		accent: "#f5c242",
+		hat: "daszek",
+		accessory: "skrzydelka",
+		hand: "none",
 	},
 };
 

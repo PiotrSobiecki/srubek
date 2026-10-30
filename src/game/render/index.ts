@@ -1208,6 +1208,30 @@ function drawHat(ctx: Ctx, skin: Skin, frame: number, legPhase: number): void {
 			for (const jx of [-3.5, 3.5]) sphere(ctx, jx, -22.2, 0.7, "#e6f4ff", "#4a90d9");
 			return;
 		}
+		case "daszek":
+			// Cap with a stiff peak pointing the way Śrubek faces.
+			ctx.beginPath();
+			ctx.ellipse(0, -22.2, 6.7, 4, 0, Math.PI, 0);
+			ctx.closePath();
+			ctx.fillStyle = shade(ctx, -26.2, 4, tint(accent, 0.35), tint(accent, -0.3));
+			ctx.fill();
+			outline(ctx, 0.7);
+			ctx.strokeStyle = "rgba(0,0,0,0.3)";
+			ctx.lineWidth = 0.5;
+			ctx.beginPath();
+			ctx.moveTo(0, -26);
+			ctx.quadraticCurveTo(-1.2, -24, -0.8, -22.3);
+			ctx.stroke();
+			ctx.beginPath();
+			ctx.moveTo(3.5, -22.6);
+			ctx.quadraticCurveTo(10, -23.2, 11.2, -21.3);
+			ctx.lineTo(4, -21.1);
+			ctx.closePath();
+			ctx.fillStyle = shade(ctx, -23.2, 2, tint(accent, -0.15), tint(accent, -0.5));
+			ctx.fill();
+			outline(ctx, 0.6);
+			sphere(ctx, 0, -26.2, 0.9, tint(accent, 0.5), accent);
+			return;
 		case "cylinder":
 			ctx.fillStyle = shade(ctx, -34, 12, tint(accent, -0.5), tint(accent, -0.8));
 			ctx.fillRect(-4.5, -33, 9, 11);
@@ -1223,7 +1247,35 @@ function drawHat(ctx: Ctx, skin: Skin, frame: number, legPhase: number): void {
 	}
 }
 
-function drawAccessory(ctx: Ctx, skin: Skin, frame: number, behind: boolean): void {
+/** Three riveted plates per side of the back, flapping faster when airborne. */
+function drawWings(ctx: Ctx, accent: string, frame: number, airborne: boolean): void {
+	const flap = Math.sin(frame / (airborne ? 2 : 6)) * (airborne ? 0.45 : 0.15);
+	for (const [angle, len] of [
+		[0.95, 8],
+		[0.55, 10],
+		[0.18, 8.5],
+	] as const) {
+		ctx.save();
+		ctx.translate(-4.5, -12);
+		ctx.rotate(angle + flap);
+		rounded(ctx, -len, -1.4, len, 2.8, 1.4);
+		ctx.fillStyle = shade(ctx, -1.4, 2.8, "#e6ecf1", "#7f8993");
+		ctx.fill();
+		outline(ctx, 0.5);
+		ctx.fillStyle = accent;
+		ctx.fillRect(-len + 1, -0.5, 1.6, 1);
+		ctx.restore();
+	}
+	sphere(ctx, -4.5, -12, 1.4, tint(accent, 0.5), accent);
+}
+
+function drawAccessory(
+	ctx: Ctx,
+	skin: Skin,
+	frame: number,
+	behind: boolean,
+	airborne = false,
+): void {
 	const accent = skin.accent;
 	if (behind) {
 		if (skin.accessory === "plecak") {
@@ -1234,6 +1286,7 @@ function drawAccessory(ctx: Ctx, skin: Skin, frame: number, behind: boolean): vo
 			ctx.fillStyle = "#3a3f49";
 			ctx.fillRect(-8, -14.5, 2.5, 2);
 		}
+		if (skin.accessory === "skrzydelka") drawWings(ctx, skin.accent, frame, airborne);
 		if (skin.accessory === "pelerynka") {
 			const sway = Math.sin(frame / 6) * 2;
 			ctx.beginPath();
@@ -1354,6 +1407,38 @@ function drawHandItem(ctx: Ctx, skin: Skin, frame: number): void {
 			outline(ctx, 0.5);
 			return;
 		}
+		case "miecz": {
+			// Grip in the claw, blade raised and tipped slightly back.
+			ctx.save();
+			ctx.translate(hx, hy);
+			ctx.rotate(-0.28);
+			rounded(ctx, -0.8, -1.5, 1.6, 4.5, 0.6);
+			ctx.fillStyle = "#6a3e1c";
+			ctx.fill();
+			sphere(ctx, 0, 3.4, 1.1, "#ffe58a", "#b8860b");
+			rounded(ctx, -3.2, -2.6, 6.4, 1.4, 0.6);
+			ctx.fillStyle = shade(ctx, -2.6, 1.4, "#ffe58a", "#b8860b");
+			ctx.fill();
+			outline(ctx, 0.4);
+			ctx.beginPath();
+			ctx.moveTo(-1.1, -2.6);
+			ctx.lineTo(-1.1, -16);
+			ctx.lineTo(0, -18.2);
+			ctx.lineTo(1.1, -16);
+			ctx.lineTo(1.1, -2.6);
+			ctx.closePath();
+			const blade = ctx.createLinearGradient(-1.1, 0, 1.1, 0);
+			blade.addColorStop(0, "#8d99a6");
+			blade.addColorStop(0.5, "#f8fbfd");
+			blade.addColorStop(1, "#7a8794");
+			ctx.fillStyle = blade;
+			ctx.fill();
+			outline(ctx, 0.4);
+			const glint = (frame % 90) / 90;
+			if (glint < 0.3) glow(ctx, 0, -3 - glint * 45, 2.5, "rgba(255,255,255,A)", 0.9);
+			ctx.restore();
+			return;
+		}
 		case "parasol":
 			stick(-6, -27, "#2b2f36", 1);
 			ctx.beginPath();
@@ -1438,7 +1523,7 @@ function drawSrubek(ctx: Ctx, p: Player, skin: Skin, frame: number, camera: numb
 	if (p.boostLeft > 0) drawFlame(ctx, frame, 1.6);
 	else if (!p.onGround && p.vy < 0) drawFlame(ctx, frame, 0.8);
 	drawWheels(ctx, p);
-	drawAccessory(ctx, skin, frame, true);
+	drawAccessory(ctx, skin, frame, true, !p.onGround);
 
 	// Body: a rounded barrel with a glossy sweep, a rust dent and a chest light.
 	ctx.beginPath();

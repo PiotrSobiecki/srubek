@@ -31,6 +31,16 @@ describe("skin", () => {
 		});
 	});
 
+	it("knows the newest parts and keeps them through storage", () => {
+		const skin = {
+			...DEFAULT_SKIN,
+			hat: "daszek",
+			accessory: "skrzydelka",
+			hand: "miecz",
+		} as const;
+		expect(normalizeSkin(skin)).toEqual(skin);
+	});
+
 	it("every preset is already valid", () => {
 		for (const skin of Object.values(PRESETS)) expect(normalizeSkin(skin)).toEqual(skin);
 	});

@@ -23,6 +23,7 @@ const HAT_LABEL: Record<Hat, string> = {
 	kask: "kask",
 	czapka: "czapka z pomponem",
 	korona: "korona",
+	daszek: "czapka z daszkiem",
 	cylinder: "cylinder",
 };
 
@@ -32,6 +33,7 @@ const ACCESSORY_LABEL: Record<Accessory, string> = {
 	plecak: "plecak",
 	pelerynka: "pelerynka",
 	okulary: "okulary",
+	skrzydelka: "skrzydełka",
 };
 
 const HAND_LABEL: Record<HandItem, string> = {
@@ -41,6 +43,7 @@ const HAND_LABEL: Record<HandItem, string> = {
 	flaga: "flaga",
 	lizak: "lizak",
 	balonik: "balonik",
+	miecz: "miecz",
 	parasol: "parasol",
 };
 

@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/PiotrSobiecki/srubek/compare/v1.2.0...v1.3.0) (2026-10-30)
+
+
+### Features
+
+* drugi skok w powietrzu i odcinek z przepaścią ([79f27e2](https://github.com/PiotrSobiecki/srubek/commit/79f27e2f3d6818fe5cd692f191aa64cbbea41a4f))
+
 # [1.2.0](https://github.com/PiotrSobiecki/srubek/compare/v1.1.0...v1.2.0) (2026-10-30)
 
 

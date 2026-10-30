@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/PiotrSobiecki/srubek/compare/v1.0.1...v1.1.0) (2026-10-30)
+
+
+### Features
+
+* Śrubek biega i skacze po pierwszym odcinku poziomu ([c90bd92](https://github.com/PiotrSobiecki/srubek/commit/c90bd9249425714b44e9ea621431418bb7be6833))
+
 ## [1.0.1](https://github.com/PiotrSobiecki/srubek/compare/v1.0.0...v1.0.1) (2026-10-30)
 
 

@@ -91,9 +91,15 @@ describe("nuts", () => {
 		const world = createWorld(FLAT);
 		settle(world);
 		const events = [];
-		for (let i = 0; i < 300; i++) events.push(...step(world, { ...IDLE, right: true }));
-		expect(events).toEqual([{ type: "nut" }]);
-		expect(world.nuts.every((n) => n.taken)).toBe(true);
+		let sparkled = false;
+		for (let i = 0; i < 300; i++) {
+			events.push(...step(world, { ...IDLE, right: true }));
+			sparkled ||= world.effects.some((e) => e.kind === "spark");
+		}
+		expect(events).toEqual([{ type: "pickup", kind: "nut" }]);
+		expect(world.pickups.every((n) => n.taken)).toBe(true);
+		expect(sparkled).toBe(true);
+		expect(world.effects).toEqual([]);
 	});
 });
 
@@ -138,6 +144,7 @@ describe("drones", () => {
 		for (let i = 0; i < 10 && d.alive; i++) events.push(...step(world, IDLE));
 		expect(events).toContainEqual({ type: "drone" });
 		expect(d.alive).toBe(false);
+		expect(world.effects.some((e) => e.kind === "burst")).toBe(true);
 		expect(world.player.vy).toBeLessThan(0);
 	});
 

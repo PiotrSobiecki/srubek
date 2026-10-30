@@ -3,10 +3,12 @@
  * in pixels per frame so a test can replay N frames and assert on positions.
  */
 
-import { isSolid, type Level, ROWS, TILE, type Vec } from "@/game/level";
+import { isSolid, type Level, type PickupKind, ROWS, TILE, type Vec } from "@/game/level";
 
 export const VIEW_W = 480;
 export const VIEW_H = 256;
+/** How long a visual effect stays in the world. */
+export const EFFECT_FRAMES = 36;
 
 const PHYSICS = {
 	gravity: 0.25,
@@ -64,8 +66,17 @@ export interface Player {
 	magnetHeld: boolean;
 }
 
-interface Nut extends Vec {
+interface PickupItem extends Vec {
+	kind: PickupKind;
 	taken: boolean;
+}
+
+/** A short visual, kept in the world so a test can see it and the renderer can draw it. */
+interface Effect {
+	kind: "burst" | "spark" | "charge";
+	x: number;
+	y: number;
+	frame: number;
 }
 
 interface Drone {
@@ -109,17 +120,18 @@ export interface Press {
 export interface World {
 	level: Level;
 	player: Player;
-	nuts: Nut[];
+	pickups: PickupItem[];
 	drones: Drone[];
 	scraps: Scrap[];
 	dogs: Dog[];
 	presses: Press[];
+	effects: Effect[];
 	camera: number;
 	frame: number;
 }
 
 export type GameEvent =
-	| { type: "nut" }
+	| { type: "pickup"; kind: PickupKind }
 	| { type: "drone" }
 	| { type: "hit" }
 	| { type: "charge" }
@@ -150,7 +162,7 @@ export function createWorld(level: Level): World {
 			boostLeft: 0,
 			magnetHeld: false,
 		},
-		nuts: level.nuts.map((n) => ({ ...n, taken: false })),
+		pickups: level.pickups.map((n) => ({ ...n, taken: false })),
 		drones: level.drones.map((d) => ({
 			x: d.x * TILE + 2,
 			y: d.y * TILE + 4,
@@ -185,6 +197,7 @@ export function createWorld(level: Level): World {
 			// Staggered so a corridor of presses never drops in unison.
 			timer: PHYSICS.pressWait - ((i * 23) % PHYSICS.pressWait),
 		})),
+		effects: [],
 		camera: 0,
 		frame: 0,
 	};
@@ -391,6 +404,7 @@ function scrapHitsDog(world: World, s: Scrap, events: GameEvent[]): void {
 		d.alive = false;
 		s.state = "ground";
 		s.vx = 0;
+		world.effects.push({ kind: "burst", x: d.x + d.w / 2, y: d.y + d.h / 2, frame: world.frame });
 		events.push({ type: "dog" });
 	}
 }
@@ -427,6 +441,7 @@ function touchDrones(world: World, events: GameEvent[]): void {
 			d.alive = false;
 			p.vy = PHYSICS.stompBounce;
 			p.sy = 0;
+			world.effects.push({ kind: "burst", x: d.x + d.w / 2, y: d.y + d.h / 2, frame: world.frame });
 			events.push({ type: "drone" });
 		} else {
 			hurt(p, d.x + d.w / 2, events);
@@ -472,13 +487,27 @@ function touchPresses(world: World, events: GameEvent[]): void {
 
 function touchPickups(world: World, events: GameEvent[]): void {
 	const p = world.player;
-	for (const nut of world.nuts) {
-		if (nut.taken || !overlaps(p, nut.x * TILE, nut.y * TILE, TILE, TILE)) continue;
-		nut.taken = true;
-		events.push({ type: "nut" });
+	for (const item of world.pickups) {
+		if (item.taken || !overlaps(p, item.x * TILE, item.y * TILE, TILE, TILE)) continue;
+		item.taken = true;
+		world.effects.push({
+			kind: "spark",
+			x: item.x * TILE + 8,
+			y: item.y * TILE + 8,
+			frame: world.frame,
+		});
+		events.push({ type: "pickup", kind: item.kind });
 	}
 	for (const c of world.level.chargers) {
-		if (overlaps(p, c.x * TILE, c.y * TILE, TILE, TILE)) events.push({ type: "charge" });
+		if (!overlaps(p, c.x * TILE, c.y * TILE, TILE, TILE)) continue;
+		events.push({ type: "charge" });
+		if (world.frame % 6 === 0)
+			world.effects.push({
+				kind: "charge",
+				x: c.x * TILE + 8,
+				y: c.y * TILE + 4,
+				frame: world.frame,
+			});
 	}
 	for (const g of world.level.gates) {
 		if (overlaps(p, g.x * TILE, (g.y - 2) * TILE, TILE, 3 * TILE)) events.push({ type: "gate" });
@@ -503,6 +532,7 @@ export function step(world: World, input: Input): GameEvent[] {
 	if (p.hurtLeft > 0) p.hurtLeft -= 1;
 	if (p.boostLeft > 0) p.boostLeft -= 1;
 	if (p.y > ROWS * TILE) events.push({ type: "fall" });
+	world.effects = world.effects.filter((e) => world.frame - e.frame < EFFECT_FRAMES);
 
 	const maxCamera = world.level.widthTiles * TILE - VIEW_W;
 	world.camera = Math.max(0, Math.min(maxCamera, p.x + p.w / 2 - VIEW_W / 2));

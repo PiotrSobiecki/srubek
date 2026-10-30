@@ -2,7 +2,8 @@
  * Level layout. A level is a row-major grid of tile characters built by joining
  * named segments side by side. Nothing here knows about physics or drawing.
  *
- *   `#` scrap ground   `=` metal platform   `o` nut   `P` spawn   `.` air
+ *   `#` scrap ground   `=` metal platform   `P` spawn   `.` air
+ *   pickups: `o` nut   `b` bolt   `z` gear   `e` energy cell
  *   `v` drone, patrolling the run of `-` it sits in   `c` charger
  *   `s` scrap the magnet can throw   `w` dog-machine walking its platform
  *   `^` press resting under a ceiling, dropping to the floor below   `g` factory gate
@@ -24,11 +25,17 @@ interface DroneSpec extends Vec {
 
 export type SegmentName = "nuts" | "drones" | "gap" | "dog" | "presses";
 
+export type PickupKind = "nut" | "bolt" | "gear" | "cell";
+
+interface Pickup extends Vec {
+	kind: PickupKind;
+}
+
 export interface Level {
 	rows: string[];
 	widthTiles: number;
 	spawn: Vec;
-	nuts: Vec[];
+	pickups: Pickup[];
 	drones: DroneSpec[];
 	chargers: Vec[];
 	scraps: Vec[];
@@ -47,8 +54,8 @@ const SEGMENTS: Record<SegmentName, string[]> = {
 		"............................................................",
 		"........................o...................................",
 		".......................===.............o.o.o................",
-		"...............o.o....................=====.................",
-		"..............====...........o..................o...o...o...",
+		"...............b.b....................=====.................",
+		"..............====...........z..................o...b...o...",
 		"...........................=====...............=========....",
 		"......o.o...................................................",
 		"......====..................................................",
@@ -62,10 +69,10 @@ const SEGMENTS: Record<SegmentName, string[]> = {
 		"............................................................",
 		"............................................................",
 		"............................................................",
-		"............................o...............................",
+		"............................z...............................",
 		".........................---v---............................",
 		"......................=====.....=====.......................",
-		"..............o.o..........................o.o..............",
+		"..............b.b..........................o.e..............",
 		"...........---v-----..............-----v----................",
 		"..............................................o.o.o.........",
 		"...........................................---v---..........",
@@ -86,9 +93,9 @@ const SEGMENTS: Record<SegmentName, string[]> = {
 		"............................................................",
 		"............................................................",
 		"............................................................",
-		".......................o.o.....................o.o.o........",
+		".......................b.b.....................o.z.o........",
 		"............................................................",
-		"....o.......................................................",
+		"....e.......................................................",
 		"...===......................................................",
 		"####################........##################.........#####",
 		"####################........##################.........#####",
@@ -103,7 +110,7 @@ const SEGMENTS: Record<SegmentName, string[]> = {
 		"............................................................",
 		"............................................................",
 		"............................................................",
-		".................................o.o.o......................",
+		".................................b.z.b......................",
 		"................................=======.....................",
 		"....o.o.....................................................",
 		"...=====............................................s.......",
@@ -124,11 +131,18 @@ const SEGMENTS: Record<SegmentName, string[]> = {
 		"..........^......^......^......^......^....................#",
 		"...........................................................#",
 		"...........................................................#",
-		".............o......o......o......o.............c..........#",
+		".............o......z......e......o.............c..........#",
 		"...................................................=====g..#",
 		"############################################################",
 		"############################################################",
 	],
+};
+
+const PICKUP_CHARS: Record<string, PickupKind | undefined> = {
+	o: "nut",
+	b: "bolt",
+	z: "gear",
+	e: "cell",
 };
 
 function trackSpan(row: string, x: number): [number, number] {
@@ -142,7 +156,7 @@ function trackSpan(row: string, x: number): [number, number] {
 
 /** Parse rows into a level. Exported for tests that need hand-made grids. */
 export function levelFromRows(rows: string[], segments: SegmentName[] = []): Level {
-	const nuts: Vec[] = [];
+	const pickups: Pickup[] = [];
 	const drones: DroneSpec[] = [];
 	const chargers: Vec[] = [];
 	const scraps: Vec[] = [];
@@ -151,7 +165,6 @@ export function levelFromRows(rows: string[], segments: SegmentName[] = []): Lev
 	const gates: Vec[] = [];
 	let spawn: Vec = { x: 1, y: 1 };
 	const lists: Record<string, Vec[]> = {
-		o: nuts,
 		c: chargers,
 		s: scraps,
 		w: dogs,
@@ -162,6 +175,8 @@ export function levelFromRows(rows: string[], segments: SegmentName[] = []): Lev
 		for (let x = 0; x < row.length; x++) {
 			const c = row[x] ?? ".";
 			lists[c]?.push({ x, y });
+			const kind = PICKUP_CHARS[c];
+			if (kind) pickups.push({ x, y, kind });
 			if (c === "P") spawn = { x, y };
 			if (c === "v") {
 				const [x0, x1] = trackSpan(row, x);
@@ -173,7 +188,7 @@ export function levelFromRows(rows: string[], segments: SegmentName[] = []): Lev
 		rows,
 		widthTiles: rows[0]?.length ?? 0,
 		spawn,
-		nuts,
+		pickups,
 		drones,
 		chargers,
 		scraps,

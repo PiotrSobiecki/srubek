@@ -8,7 +8,9 @@ describe("buildLevel(1)", () => {
 		expect(level.presses.length).toBeGreaterThanOrEqual(3);
 		expect(level.gates).toHaveLength(1);
 		expect(level.chargers.length).toBe(2);
-		expect(level.nuts.length).toBeGreaterThan(5);
+		const kinds = new Set(level.pickups.map((p) => p.kind));
+		expect([...kinds].sort()).toEqual(["bolt", "cell", "gear", "nut"]);
+		expect(level.pickups.length).toBeGreaterThan(20);
 		expect(level.drones.length).toBeGreaterThanOrEqual(3);
 	});
 

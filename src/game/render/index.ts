@@ -4,8 +4,8 @@
  * 960x512, shapes get gradients, rim lights and outlines, surfaces get texture.
  */
 
-import { type Player, type Press, VIEW_H, VIEW_W, type World } from "@/game/engine";
-import { type Level, TILE } from "@/game/level";
+import { EFFECT_FRAMES, type Player, type Press, VIEW_H, VIEW_W, type World } from "@/game/engine";
+import { type Level, type PickupKind, TILE } from "@/game/level";
 import { BATTERY_MAX, type GameState, totalPoints } from "@/game/state";
 
 const SCALE = 2;
@@ -629,6 +629,168 @@ function drawNut(ctx: Ctx, cx: number, cy: number, spin: number): void {
 	ctx.restore();
 }
 
+function drawBolt(ctx: Ctx, cx: number, cy: number, spin: number): void {
+	const sx = Math.abs(Math.cos(spin)) * 0.7 + 0.3;
+	glow(ctx, cx, cy, 8, "rgba(180,220,255,A)", 0.3);
+	ctx.save();
+	ctx.translate(cx, cy);
+	ctx.scale(sx, 1);
+	ctx.fillStyle = shade(ctx, -6, 12, "#dfe7ee", "#6a7682");
+	rounded(ctx, -4.5, -6, 9, 3.5, 1.2);
+	ctx.fill();
+	outline(ctx, 0.6);
+	rounded(ctx, -2, -2.5, 4, 8.5, 1);
+	ctx.fillStyle = shade(ctx, -2.5, 8.5, "#c9d3dc", "#58636e");
+	ctx.fill();
+	outline(ctx, 0.6);
+	ctx.strokeStyle = "rgba(0,0,0,0.45)";
+	ctx.lineWidth = 0.7;
+	ctx.beginPath();
+	for (let y = -0.5; y < 5.5; y += 2) {
+		ctx.moveTo(-2, y);
+		ctx.lineTo(2, y + 1);
+	}
+	ctx.stroke();
+	ctx.restore();
+}
+
+function drawGear(ctx: Ctx, cx: number, cy: number, spin: number): void {
+	glow(ctx, cx, cy, 10, "rgba(255,160,80,A)", 0.3);
+	ctx.save();
+	ctx.translate(cx, cy);
+	ctx.rotate(spin);
+	ctx.fillStyle = "#8a4b2a";
+	for (let i = 0; i < 8; i++) {
+		const a = (i / 8) * Math.PI * 2;
+		ctx.save();
+		ctx.rotate(a);
+		ctx.fillRect(4, -1.6, 3.2, 3.2);
+		ctx.restore();
+	}
+	sphere(ctx, 0, 0, 5, "#ffb070", "#9a4b1f");
+	ctx.beginPath();
+	ctx.arc(0, 0, 5, 0, Math.PI * 2);
+	outline(ctx, 0.6);
+	ctx.fillStyle = "#3d2214";
+	ctx.beginPath();
+	ctx.arc(0, 0, 1.8, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.restore();
+}
+
+function drawCell(ctx: Ctx, cx: number, cy: number, frame: number): void {
+	const pulse = 0.5 + Math.sin(frame / 6) * 0.3;
+	glow(ctx, cx, cy, 11, "rgba(79,240,224,A)", pulse * 0.6);
+	rounded(ctx, cx - 3.5, cy - 5, 7, 10, 1.5);
+	ctx.fillStyle = shade(ctx, cy - 5, 10, "#dfe7ee", "#4a535d");
+	ctx.fill();
+	outline(ctx, 0.6);
+	ctx.fillStyle = "#2b2f36";
+	ctx.fillRect(cx - 1.5, cy - 6.5, 3, 1.5);
+	ctx.fillStyle = `rgba(79,240,224,${0.7 + pulse * 0.3})`;
+	ctx.fillRect(cx - 2.2, cy - 3.2, 4.4, 2);
+	ctx.fillRect(cx - 2.2, cy - 0.5, 4.4, 2);
+	ctx.fillRect(cx - 2.2, cy + 2.2, 4.4, 2);
+}
+
+function drawPickup(
+	ctx: Ctx,
+	kind: PickupKind,
+	cx: number,
+	cy: number,
+	frame: number,
+	salt: number,
+): void {
+	switch (kind) {
+		case "nut":
+			drawNut(ctx, cx, cy, frame / 12 + salt);
+			break;
+		case "bolt":
+			drawBolt(ctx, cx, cy, frame / 10 + salt);
+			break;
+		case "gear":
+			drawGear(ctx, cx, cy, frame / 20 + salt);
+			break;
+		case "cell":
+			drawCell(ctx, cx, cy, frame + salt);
+			break;
+	}
+}
+
+function drawBurst(ctx: Ctx, x: number, y: number, t: number): void {
+	// Flash ring, then debris flying out under gravity and a puff of smoke.
+	const k = t / EFFECT_FRAMES;
+	ctx.strokeStyle = `rgba(255,230,160,${(1 - k) * 0.9})`;
+	ctx.lineWidth = 2.5 * (1 - k) + 0.5;
+	ctx.beginPath();
+	ctx.arc(x, y, 3 + k * 22, 0, Math.PI * 2);
+	ctx.stroke();
+	if (t < 4) glow(ctx, x, y, 18, "rgba(255,240,200,A)", 0.9);
+	for (let i = 0; i < 9; i++) {
+		const a = noise(x, i, 71) * Math.PI * 2;
+		const speed = 1.2 + noise(y, i, 73) * 1.6;
+		const px = x + Math.cos(a) * speed * t;
+		const py = y + Math.sin(a) * speed * t + 0.08 * t * t;
+		ctx.fillStyle = i % 3 === 0 ? "#ff9a3a" : "#8f9aa6";
+		ctx.fillRect(px - 1, py - 1, 2.2, 2.2);
+	}
+	for (let i = 0; i < 4; i++) {
+		const px = x + (noise(x, i, 77) - 0.5) * 14;
+		const py = y - 2 - t * 0.5 - i * 2;
+		glow(ctx, px, py, 5 + k * 8, "rgba(90,90,100,A)", (1 - k) * 0.5);
+	}
+}
+
+function drawSpark(ctx: Ctx, x: number, y: number, t: number): void {
+	const k = t / EFFECT_FRAMES;
+	for (let i = 0; i < 6; i++) {
+		const a = (i / 6) * Math.PI * 2 + noise(x, i, 79);
+		const r = 2 + t * 0.7;
+		const px = x + Math.cos(a) * r;
+		const py = y + Math.sin(a) * r - t * 0.4;
+		ctx.fillStyle = `rgba(255,235,150,${1 - k})`;
+		ctx.beginPath();
+		ctx.moveTo(px, py - 2);
+		ctx.lineTo(px + 1.2, py);
+		ctx.lineTo(px, py + 2);
+		ctx.lineTo(px - 1.2, py);
+		ctx.closePath();
+		ctx.fill();
+	}
+	ctx.fillStyle = `rgba(255,255,255,${(1 - k) * 0.8})`;
+	ctx.font = "bold 7px 'Trebuchet MS', sans-serif";
+	ctx.fillText("+", x - 2, y - 6 - t * 0.5);
+}
+
+function drawChargeArc(ctx: Ctx, x: number, y: number, t: number, px: number, py: number): void {
+	if (t > 8) return;
+	ctx.strokeStyle = `rgba(140,255,240,${1 - t / 8})`;
+	ctx.lineWidth = 1.2;
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	const steps = 5;
+	for (let i = 1; i <= steps; i++) {
+		const f = i / steps;
+		ctx.lineTo(
+			x + (px - x) * f + (noise(t, i, 83) - 0.5) * 8,
+			y + (py - y) * f + (noise(i, t, 89) - 0.5) * 8,
+		);
+	}
+	ctx.stroke();
+	glow(ctx, px, py, 12, "rgba(79,240,224,A)", 0.35);
+}
+
+function drawEffects(ctx: Ctx, world: World, camera: number): void {
+	const p = world.player;
+	for (const e of world.effects) {
+		const t = world.frame - e.frame;
+		const x = e.x - camera;
+		if (e.kind === "burst") drawBurst(ctx, x, e.y, t);
+		else if (e.kind === "spark") drawSpark(ctx, x, e.y, t);
+		else drawChargeArc(ctx, x, e.y, t, p.x + p.w / 2 - camera, p.y + 4);
+	}
+}
+
 function drawLegs(ctx: Ctx, p: Player, legPhase: number): void {
 	const legs: [number, number][] = p.onGround
 		? [
@@ -667,13 +829,13 @@ function drawHead(ctx: Ctx, frame: number, legPhase: number): void {
 	outline(ctx);
 	rim(ctx, 0.6);
 	// Visor and eyes.
-	rounded(ctx, -4.8, -20.6, 9.6, 5.2, 2.6);
+	rounded(ctx, -4, -20.6, 9.6, 5.2, 2.6);
 	ctx.fillStyle = "#0f1820";
 	ctx.fill();
 	if (frame % 180 <= 174) {
-		sphere(ctx, -2, -18, 1.6, "#d8fffb", "#2fd3c6");
-		sphere(ctx, 2.4, -18, 1.6, "#d8fffb", "#2fd3c6");
-		glow(ctx, 0.2, -18, 6, "rgba(79,240,224,A)", 0.3);
+		sphere(ctx, -0.8, -18, 1.5, "#d8fffb", "#2fd3c6");
+		sphere(ctx, 3.2, -18, 1.7, "#d8fffb", "#2fd3c6");
+		glow(ctx, 1.4, -18, 6, "rgba(79,240,224,A)", 0.3);
 	}
 	// Antenna with a bobbing bulb.
 	ctx.strokeStyle = "#3a3f49";
@@ -735,12 +897,12 @@ function drawSrubek(ctx: Ctx, p: Player, frame: number, camera: number): void {
 	glow(ctx, 2.6, -10, 4, "rgba(255,200,100,A)", 0.45);
 	sphere(ctx, 2.6, -10, 1.5, "#ffe2a0", "#d98a1c");
 
-	// Arm with the magnet claw.
-	rounded(ctx, 4.6, -12, 3.2, 6.5, 1.6);
+	// Trailing arm with the magnet claw, so the body reads as facing forward.
+	rounded(ctx, -7.8, -12, 3.2, 6.5, 1.6);
 	ctx.fillStyle = shade(ctx, -12, 6.5, "#c2ccd5", "#5f6971");
 	ctx.fill();
 	outline(ctx, 0.6);
-	sphere(ctx, 6.2, -5.2, 2, "#ff9c84", "#c23b25");
+	sphere(ctx, -6.2, -5.2, 2, "#ff9c84", "#c23b25");
 
 	drawHead(ctx, frame, legPhase);
 	if (p.boostLeft > 0) drawFlame(ctx, frame);
@@ -788,7 +950,7 @@ function drawDog(ctx: Ctx, x: number, y: number, dir: number, frame: number): vo
 	ctx.beginPath();
 	ctx.ellipse(0, 0.6, 9, 1.6, 0, 0, Math.PI * 2);
 	ctx.fill();
-	ctx.scale(-dir * ACTOR, ACTOR);
+	ctx.scale(dir * ACTOR, ACTOR);
 	const stride = Math.sin(frame / 4) * 2;
 	for (const [lx, s] of [
 		[-5, stride],
@@ -991,15 +1153,16 @@ function drawActors(ctx: Ctx, world: World, camera: number): void {
 	for (const c of world.level.chargers) drawCharger(ctx, c.x * TILE - camera, c.y * TILE, frame);
 	for (const g of world.level.gates) drawGate(ctx, g.x * TILE - camera, (g.y - 2) * TILE, frame);
 	for (const p of world.presses) drawPress(ctx, p, camera);
-	for (const nut of world.nuts) {
-		if (nut.taken) continue;
-		const bob = Math.sin((frame + nut.x * 7) / 12) * 1.5;
-		drawNut(ctx, nut.x * TILE + 8 - camera, nut.y * TILE + 8 + bob, frame / 12 + nut.x);
+	for (const item of world.pickups) {
+		if (item.taken) continue;
+		const bob = Math.sin((frame + item.x * 7) / 12) * 1.5;
+		drawPickup(ctx, item.kind, item.x * TILE + 8 - camera, item.y * TILE + 8 + bob, frame, item.x);
 	}
 	for (const s of world.scraps) drawScrap(ctx, s.x - camera, s.y, s.state === "held", frame);
 	for (const d of world.dogs) if (d.alive) drawDog(ctx, d.x - camera, d.y, d.dir, frame);
 	for (const d of world.drones) if (d.alive) drawDrone(ctx, d.x - camera, d.y, d.dir, frame);
 	drawSrubek(ctx, world.player, frame, camera);
+	drawEffects(ctx, world, camera);
 }
 
 export type Renderer = (world: World, state: GameState) => void;

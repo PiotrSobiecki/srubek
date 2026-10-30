@@ -1,9 +1,11 @@
 import {
 	applyEvents,
 	BATTERY_MAX,
+	BOLT_POINTS,
 	createState,
 	DOG_POINTS,
 	DRONE_POINTS,
+	GEAR_POINTS,
 	LIVES_START,
 	NUT_POINTS,
 	totalPoints,
@@ -17,17 +19,32 @@ describe("points", () => {
 	it("grow per nut and per drone without mutating the previous state", () => {
 		const before = createState();
 		const after = applyEvents(before, [
-			{ type: "nut" },
-			{ type: "nut" },
+			{ type: "pickup", kind: "nut" },
+			{ type: "pickup", kind: "nut" },
+			{ type: "pickup", kind: "bolt" },
+			{ type: "pickup", kind: "gear" },
 			{ type: "drone" },
 			{ type: "dog" },
 		]);
-		expect(totalPoints(after)).toBe(2 * NUT_POINTS + DRONE_POINTS + DOG_POINTS);
+		expect(totalPoints(after)).toBe(
+			2 * NUT_POINTS + BOLT_POINTS + GEAR_POINTS + DRONE_POINTS + DOG_POINTS,
+		);
 		expect(totalPoints(before)).toBe(0);
 	});
 });
 
 describe("battery and lives", () => {
+	it("an energy cell adds one bar, never past the maximum", () => {
+		let s = applyEvents(createState(), [{ type: "hit" }, { type: "hit" }]);
+		s = applyEvents(s, [{ type: "pickup", kind: "cell" }]);
+		expect(s.battery).toBe(BATTERY_MAX - 1);
+		s = applyEvents(s, [
+			{ type: "pickup", kind: "cell" },
+			{ type: "pickup", kind: "cell" },
+		]);
+		expect(s.battery).toBe(BATTERY_MAX);
+	});
+
 	it("a hit takes one bar, a charger refills to full", () => {
 		let s = applyEvents(createState(), [{ type: "hit" }]);
 		expect(s.battery).toBe(BATTERY_MAX - 1);
@@ -36,7 +53,7 @@ describe("battery and lives", () => {
 	});
 
 	it("an empty battery costs a life, the level's points and asks for a respawn", () => {
-		let s = applyEvents(createState(), [{ type: "nut" }]);
+		let s = applyEvents(createState(), [{ type: "pickup", kind: "nut" }]);
 		s = applyEvents(
 			s,
 			Array.from({ length: BATTERY_MAX }, () => ({ type: "hit" }) as const),
@@ -55,7 +72,7 @@ describe("battery and lives", () => {
 	});
 
 	it("the gate switches to the boss and freezes scoring", () => {
-		const s = applyEvents(createState(), [{ type: "gate" }, { type: "nut" }]);
+		const s = applyEvents(createState(), [{ type: "gate" }, { type: "pickup", kind: "nut" }]);
 		expect(s.status).toBe("boss");
 		expect(s.levelPoints).toBe(0);
 	});
@@ -76,7 +93,7 @@ describe("battery and lives", () => {
 		const s = applyEvents(createState(), hits);
 		expect(s.lives).toBe(0);
 		expect(s.status).toBe("over");
-		expect(applyEvents(s, [{ type: "nut" }])).toEqual(s);
+		expect(applyEvents(s, [{ type: "pickup", kind: "nut" }])).toEqual(s);
 	});
 
 	it("restarts from the initial state", () => {

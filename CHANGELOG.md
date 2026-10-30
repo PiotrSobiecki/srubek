@@ -1,3 +1,10 @@
+## [1.24.2](https://github.com/PiotrSobiecki/srubek/compare/v1.24.1...v1.24.2) (2026-10-30)
+
+
+### Bug Fixes
+
+* korona jako jeden obrys z pięcioma zębami ([e2feee9](https://github.com/PiotrSobiecki/srubek/commit/e2feee901ce28e020249027e841970642e96fe35))
+
 ## [1.24.1](https://github.com/PiotrSobiecki/srubek/compare/v1.24.0...v1.24.1) (2026-10-30)
 
 

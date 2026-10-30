@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/PiotrSobiecki/srubek/compare/v1.4.0...v1.5.0) (2026-10-30)
+
+
+### Features
+
+* grafika wektorowa na teksturach CC0 zamiast pixel artu ([c845997](https://github.com/PiotrSobiecki/srubek/commit/c84599754c7670adb445aca2e70f525ce7282894))
+
 # [1.4.0](https://github.com/PiotrSobiecki/srubek/compare/v1.3.0...v1.4.0) (2026-10-30)
 
 

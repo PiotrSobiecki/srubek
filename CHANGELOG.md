@@ -1,3 +1,10 @@
+# [1.24.0](https://github.com/PiotrSobiecki/srubek/compare/v1.23.0...v1.24.0) (2026-10-30)
+
+
+### Features
+
+* menu startowe z szafą Śrubka ([50d19d0](https://github.com/PiotrSobiecki/srubek/commit/50d19d0a31acf0f57cc6ef932f52b17be41a8617))
+
 # [1.23.0](https://github.com/PiotrSobiecki/srubek/compare/v1.22.0...v1.23.0) (2026-10-30)
 
 

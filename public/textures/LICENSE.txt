@@ -1,1 +1,4 @@
-Tekstury z ambientcg.com, licencja CC0 1.0 (bez wymogu atrybucji): Gravel022 (gravel), Ground037 (moss), Rust005 (rust), MetalPlates006 (plates). Przeskalowane do 256 px.
+Tekstury z ambientcg.com, licencja CC0 1.0 (bez wymogu atrybucji), przeskalowane do 256 px:
+Gravel022 (gravel), Ground037 (moss), Rust005 (rust), MetalPlates006 (plates),
+Concrete034 (concrete), Asphalt010 (asphalt), DiamondPlate001 (diamond),
+Tiles087 (tiles), PaintedMetal009 (paint), CorrugatedSteel002 (corrugated).

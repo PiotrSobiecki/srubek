@@ -35,7 +35,9 @@ function fakeDb(): ScoreDb & { rows: ScoreRow[] } {
 describe("maxScore", () => {
 	it("covers every pickup, enemy and the boss of level 1", () => {
 		expect(maxScore(1)).toBeGreaterThan(2 * BOSS_HIT_POINTS + BOSS_POINTS);
-		expect(maxScore(2)).toBe(2 * maxScore(1));
+		// Each level adds its own payout on top of the ones before it.
+		expect(maxScore(2)).toBeGreaterThan(maxScore(1) + BOSS_POINTS);
+		expect(maxScore(3)).toBeGreaterThan(maxScore(2));
 	});
 });
 

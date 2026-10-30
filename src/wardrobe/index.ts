@@ -7,7 +7,9 @@ import type { Game } from "@/game/main";
 import {
 	ACCESSORIES,
 	type Accessory,
+	HANDS,
 	HATS,
+	type HandItem,
 	type Hat,
 	loadSkin,
 	PRESETS,
@@ -32,6 +34,16 @@ const ACCESSORY_LABEL: Record<Accessory, string> = {
 	okulary: "okulary",
 };
 
+const HAND_LABEL: Record<HandItem, string> = {
+	none: "pusta ręka",
+	klucz: "klucz",
+	mlotek: "młotek",
+	flaga: "flaga",
+	lizak: "lizak",
+	balonik: "balonik",
+	parasol: "parasol",
+};
+
 export interface WardrobeElements {
 	presets: HTMLElement;
 	body: HTMLInputElement;
@@ -39,6 +51,7 @@ export interface WardrobeElements {
 	accent: HTMLInputElement;
 	hat: HTMLSelectElement;
 	accessory: HTMLSelectElement;
+	hand: HTMLSelectElement;
 }
 
 function fillSelect<T extends string>(
@@ -59,6 +72,7 @@ function fillSelect<T extends string>(
 export function mountWardrobe(el: WardrobeElements, game: Game): void {
 	fillSelect(el.hat, HATS, HAT_LABEL);
 	fillSelect(el.accessory, ACCESSORIES, ACCESSORY_LABEL);
+	fillSelect(el.hand, HANDS, HAND_LABEL);
 
 	const show = (skin: Skin): void => {
 		el.body.value = skin.body;
@@ -66,6 +80,7 @@ export function mountWardrobe(el: WardrobeElements, game: Game): void {
 		el.accent.value = skin.accent;
 		el.hat.value = skin.hat;
 		el.accessory.value = skin.accessory;
+		el.hand.value = skin.hand;
 	};
 
 	const apply = (skin: Skin): void => {
@@ -79,6 +94,7 @@ export function mountWardrobe(el: WardrobeElements, game: Game): void {
 		accent: el.accent.value,
 		hat: el.hat.value as Hat,
 		accessory: el.accessory.value as Accessory,
+		hand: el.hand.value as HandItem,
 	});
 
 	for (const [name, skin] of Object.entries(PRESETS)) {
@@ -95,7 +111,7 @@ export function mountWardrobe(el: WardrobeElements, game: Game): void {
 		el.presets.appendChild(b);
 	}
 
-	for (const input of [el.body, el.eyes, el.accent, el.hat, el.accessory]) {
+	for (const input of [el.body, el.eyes, el.accent, el.hat, el.accessory, el.hand]) {
 		input.addEventListener("input", () => apply(read()));
 	}
 

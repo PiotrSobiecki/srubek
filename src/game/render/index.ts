@@ -8,6 +8,7 @@ import type { Boss } from "@/game/boss";
 import {
 	EFFECT_FRAMES,
 	MEGA_SIZE,
+	type Platform,
 	type Player,
 	type Press,
 	SCRAP_CAPACITY,
@@ -62,7 +63,17 @@ function hexagon(ctx: Ctx, r: number): void {
 
 // ── textures ─────────────────────────────────────────────────────────
 
-type TextureName = "gravel" | "moss" | "rust" | "plates";
+type TextureName =
+	| "gravel"
+	| "moss"
+	| "rust"
+	| "plates"
+	| "concrete"
+	| "asphalt"
+	| "diamond"
+	| "tiles"
+	| "paint"
+	| "corrugated";
 
 interface Textures {
 	pattern(ctx: Ctx, name: TextureName, offsetX: number, scale: number): CanvasPattern | string;
@@ -73,6 +84,62 @@ const FALLBACK: Record<TextureName, string> = {
 	moss: "#6f8a2e",
 	rust: "#8a4b2a",
 	plates: "#58606a",
+	concrete: "#8d8f8c",
+	asphalt: "#2b2d33",
+	diamond: "#8a9096",
+	tiles: "#3a3d33",
+	paint: "#b8a640",
+	corrugated: "#9a3a34",
+};
+
+/** How each theme dresses its ground, crust and platforms. */
+interface ThemeStyle {
+	ground: TextureName;
+	groundScale: number;
+	crust: TextureName;
+	crustScale: number;
+	plate: TextureName;
+	/** Grass tufts on the crust, or none. */
+	tufts?: string;
+	rim: string;
+	/** Scrap shards sunk into the ground. */
+	shards: boolean;
+	/** Hazard stripes painted along the crust. */
+	stripes: boolean;
+}
+
+const THEME_STYLE: Record<Theme, ThemeStyle> = {
+	zlomowisko: {
+		ground: "gravel",
+		groundScale: 0.3,
+		crust: "moss",
+		crustScale: 0.22,
+		plate: "plates",
+		tufts: "#9ec44a",
+		rim: "rgba(255,255,200,0.55)",
+		shards: true,
+		stripes: false,
+	},
+	stocznia: {
+		ground: "concrete",
+		groundScale: 0.25,
+		crust: "asphalt",
+		crustScale: 0.25,
+		plate: "diamond",
+		rim: "rgba(220,235,255,0.6)",
+		shards: false,
+		stripes: false,
+	},
+	fabryka: {
+		ground: "tiles",
+		groundScale: 0.25,
+		crust: "paint",
+		crustScale: 0.2,
+		plate: "corrugated",
+		rim: "rgba(255,220,120,0.6)",
+		shards: false,
+		stripes: true,
+	},
 };
 
 /** Loads the CC0 textures; until an image arrives its flat colour is used instead. */
@@ -110,6 +177,8 @@ interface Backdrop {
 	mid: HTMLCanvasElement;
 	/** Water strip between the far and mid layers, shipyard only. */
 	sea?: HTMLCanvasElement;
+	/** Chimneys in the mid layer that breathe smoke, factory only. */
+	smoky?: boolean;
 }
 
 function layerCanvas(w: number, h: number): [HTMLCanvasElement, Ctx | null] {
@@ -121,21 +190,57 @@ function layerCanvas(w: number, h: number): [HTMLCanvasElement, Ctx | null] {
 	return [c, ctx];
 }
 
-function bakeSky(): HTMLCanvasElement {
+interface SkyPalette {
+	stops: [string, string, string, string];
+	clouds: string;
+	cloudAlpha: number;
+	stars: number;
+	moon: [string, string];
+	moonY: number;
+}
+
+const SKIES: Record<Theme, SkyPalette> = {
+	zlomowisko: {
+		stops: ["#0e0c24", "#35204a", "#b84e33", "#f2a640"],
+		clouds: "rgba(120,70,160,A)",
+		cloudAlpha: 0.25,
+		stars: 160,
+		moon: ["#fff6cf", "#d9b35a"],
+		moonY: 48,
+	},
+	stocznia: {
+		stops: ["#03060f", "#0b1836", "#1d3766", "#4d74a8"],
+		clouds: "rgba(70,110,190,A)",
+		cloudAlpha: 0.22,
+		stars: 240,
+		moon: ["#f4f8ff", "#9fb4d6"],
+		moonY: 40,
+	},
+	fabryka: {
+		stops: ["#1c130d", "#3d2618", "#86431c", "#e08a2e"],
+		clouds: "rgba(80,62,52,A)",
+		cloudAlpha: 0.45,
+		stars: 30,
+		moon: ["#ffe2a0", "#e0782a"],
+		moonY: 120,
+	},
+};
+
+function bakeSky(p: SkyPalette): HTMLCanvasElement {
 	const [c, ctx] = layerCanvas(VIEW_W, VIEW_H);
 	if (!ctx) return c;
 	const sky = ctx.createLinearGradient(0, 0, 0, VIEW_H);
-	sky.addColorStop(0, "#0e0c24");
-	sky.addColorStop(0.4, "#35204a");
-	sky.addColorStop(0.75, "#b84e33");
-	sky.addColorStop(1, "#f2a640");
+	sky.addColorStop(0, p.stops[0]);
+	sky.addColorStop(0.4, p.stops[1]);
+	sky.addColorStop(0.75, p.stops[2]);
+	sky.addColorStop(1, p.stops[3]);
 	ctx.fillStyle = sky;
 	ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-	// Nebula-like soft clouds.
+	// Nebula-like soft clouds, or smog.
 	for (let i = 0; i < 6; i++) {
-		glow(ctx, 60 + i * 80, 40 + noise(i, 1, 5) * 90, 70, "rgba(120,70,160,A)", 0.25);
+		glow(ctx, 60 + i * 80, 40 + noise(i, 1, 5) * 90, 70, p.clouds, p.cloudAlpha);
 	}
-	for (let i = 0; i < 160; i++) {
+	for (let i = 0; i < p.stars; i++) {
 		const x = noise(i, 1, 3) * VIEW_W;
 		const y = noise(i, 2, 3) * VIEW_H * 0.62;
 		const r = 0.4 + noise(i, 3, 3) * 1.2;
@@ -144,8 +249,8 @@ function bakeSky(): HTMLCanvasElement {
 		ctx.arc(x, y, r, 0, Math.PI * 2);
 		ctx.fill();
 	}
-	glow(ctx, 400, 48, 46, "rgba(255,230,160,A)", 0.35);
-	sphere(ctx, 400, 48, 18, "#fff6cf", "#d9b35a");
+	glow(ctx, 400, p.moonY, 46, "rgba(255,230,160,A)", 0.35);
+	sphere(ctx, 400, p.moonY, 18, p.moon[0], p.moon[1]);
 	ctx.fillStyle = "rgba(190,150,70,0.35)";
 	ctx.beginPath();
 	ctx.arc(394, 44, 4, 0, Math.PI * 2);
@@ -332,17 +437,85 @@ function bakeSea(): HTMLCanvasElement {
 	return c;
 }
 
+/** Chimney x positions inside the factory's mid layer, for the live smoke. */
+const FACTORY_STACKS = [0.18, 0.62, 0.86];
+
+/** Factory skyline: sawtooth-roof halls, striped chimneys, a pipe run with lit windows. */
+function bakeFactory(
+	period: number,
+	height: number,
+	tone: string,
+	dark: string,
+	stacks: boolean,
+): HTMLCanvasElement {
+	const [c, ctx] = layerCanvas(period, height);
+	if (!ctx) return c;
+	const halls: [number, number, number][] = [
+		[0, 0.34, 54],
+		[0.36, 0.3, 66],
+		[0.7, 0.3, 48],
+	];
+	for (const [hx, hw, hh] of halls) {
+		const x = hx * period;
+		const w = hw * period;
+		const top = height - hh;
+		ctx.fillStyle = shade(ctx, top, hh, tone, dark);
+		ctx.beginPath();
+		ctx.moveTo(x, height);
+		ctx.lineTo(x, top + 10);
+		const teeth = Math.max(3, Math.round(w / 22));
+		for (let i = 0; i < teeth; i++) {
+			const tx = x + (i * w) / teeth;
+			ctx.lineTo(tx + w / teeth, top);
+			ctx.lineTo(tx + w / teeth, top + 10);
+		}
+		ctx.lineTo(x + w, height);
+		ctx.closePath();
+		ctx.fill();
+		for (let i = 0; i < teeth; i++) {
+			const on = noise(i, hx * 10, 61) > 0.35;
+			ctx.fillStyle = on ? "rgba(255,200,110,0.75)" : "rgba(0,0,0,0.3)";
+			ctx.fillRect(x + (i * w) / teeth + 6, top + 14, w / teeth - 12, 5);
+		}
+	}
+	// Pipe run along the halls.
+	ctx.fillStyle = dark;
+	ctx.fillRect(0, height - 30, period, 3);
+	ctx.fillRect(period * 0.33, height - 46, 3, 16);
+	if (stacks) {
+		for (const sx of FACTORY_STACKS) {
+			const x = sx * period;
+			ctx.fillStyle = shade(ctx, 8, height, "#5a4a44", dark);
+			ctx.fillRect(x - 4, 8, 8, height);
+			for (let y = 14; y < 40; y += 10) {
+				ctx.fillStyle = "rgba(220,80,60,0.75)";
+				ctx.fillRect(x - 4, y, 8, 4);
+			}
+			glow(ctx, x, 10, 5, "rgba(255,90,60,A)", 0.7);
+		}
+	}
+	return c;
+}
+
 function bakeBackdrop(theme: Theme): Backdrop {
+	if (theme === "fabryka") {
+		return {
+			sky: bakeSky(SKIES.fabryka),
+			far: bakeFactory(400, 140, "#4a3428", "#24170f", false),
+			mid: bakeFactory(300, 120, "#3d2a20", "#1a100a", true),
+			smoky: true,
+		};
+	}
 	if (theme === "stocznia") {
 		return {
-			sky: bakeSky(),
+			sky: bakeSky(SKIES.stocznia),
 			far: bakeShipyard(420, 150, "#3a3458", "#1e1a34", false),
 			mid: bakeShipyard(360, 110, "#4a3a4a", "#261c2c", true),
 			sea: bakeSea(),
 		};
 	}
 	return {
-		sky: bakeSky(),
+		sky: bakeSky(SKIES.zlomowisko),
 		far: bakeLayer(340, 160, "#4d2b58", "#2b1a38", 11, false),
 		mid: bakeLayer(280, 118, "#5f3238", "#33202a", 17, true),
 	};
@@ -397,6 +570,24 @@ function drawBackground(ctx: Ctx, b: Backdrop, camera: number, frame: number): v
 		ctx.globalAlpha = 1;
 	}
 	drawLayer(ctx, b.mid, camera, 0.45, VIEW_H - 12);
+	if (b.smoky) drawSmoke(ctx, b.mid, camera, frame);
+}
+
+/** Smoke rising from the factory chimneys, moving with the mid layer. */
+function drawSmoke(ctx: Ctx, layer: HTMLCanvasElement, camera: number, frame: number): void {
+	const period = layer.width / SCALE;
+	const top = VIEW_H - 12 - layer.height / SCALE + 8;
+	const shift = (camera * 0.45) % period;
+	for (let base = -shift - period; base < VIEW_W + period; base += period) {
+		for (const sx of FACTORY_STACKS) {
+			for (let i = 0; i < 6; i++) {
+				const t = (frame * 0.5 + i * 18 + sx * 50) % 108;
+				const k = t / 108;
+				const x = base + sx * period + t * 0.35 + Math.sin(t / 12 + i) * 3;
+				glow(ctx, x, top - t * 0.9, 4 + t * 0.14, "rgba(70,58,52,A)", (1 - k) * 0.45);
+			}
+		}
+	}
 }
 
 // ── tiles and decor ──────────────────────────────────────────────────
@@ -404,6 +595,7 @@ function drawBackground(ctx: Ctx, b: Backdrop, camera: number, frame: number): v
 function drawGroundTile(
 	ctx: Ctx,
 	tex: Textures,
+	style: ThemeStyle,
 	x: number,
 	y: number,
 	tx: number,
@@ -411,13 +603,13 @@ function drawGroundTile(
 	open: boolean,
 	camera: number,
 ): void {
-	ctx.fillStyle = tex.pattern(ctx, "gravel", -camera, 0.3);
+	ctx.fillStyle = tex.pattern(ctx, style.ground, -camera, style.groundScale);
 	ctx.fillRect(x, y, TILE, TILE);
 	// Depth: darker the deeper the row.
 	ctx.fillStyle = `rgba(20,10,5,${Math.min(0.55, 0.12 + (ty - 12) * 0.08)})`;
 	ctx.fillRect(x, y, TILE, TILE);
 	// Buried scrap: bolts and bright shards.
-	for (let i = 0; i < 3; i++) {
+	for (let i = 0; i < (style.shards ? 3 : 0); i++) {
 		const r = noise(tx * 5 + i, ty, 7);
 		const px = x + 2 + noise(tx, ty + i, 9) * 12;
 		const py = y + 4 + noise(tx + i, ty, 13) * 10;
@@ -428,7 +620,7 @@ function drawGroundTile(
 	// Mossy crust with a wavy underside, a bright rim and a shadow beneath.
 	ctx.fillStyle = "rgba(0,0,0,0.35)";
 	ctx.fillRect(x, y + 6, TILE, 2);
-	ctx.fillStyle = tex.pattern(ctx, "moss", -camera, 0.22);
+	ctx.fillStyle = tex.pattern(ctx, style.crust, -camera, style.crustScale);
 	ctx.beginPath();
 	ctx.moveTo(x, y);
 	ctx.lineTo(x + TILE, y);
@@ -439,10 +631,23 @@ function drawGroundTile(
 	}
 	ctx.closePath();
 	ctx.fill();
-	ctx.fillStyle = "rgba(255,255,200,0.55)";
+	ctx.fillStyle = style.rim;
 	ctx.fillRect(x, y, TILE, 1.2);
+	if (style.stripes) {
+		ctx.fillStyle = "rgba(20,16,12,0.8)";
+		for (let i = 0; i < 2; i++) {
+			ctx.beginPath();
+			ctx.moveTo(x + i * 8 + 2, y + 5);
+			ctx.lineTo(x + i * 8 + 5, y + 1.2);
+			ctx.lineTo(x + i * 8 + 8, y + 1.2);
+			ctx.lineTo(x + i * 8 + 5, y + 5);
+			ctx.closePath();
+			ctx.fill();
+		}
+	}
+	if (!style.tufts) return;
 	// Tufts.
-	ctx.strokeStyle = "#9ec44a";
+	ctx.strokeStyle = style.tufts;
 	ctx.lineWidth = 1;
 	ctx.beginPath();
 	for (let i = 0; i < 3; i++) {
@@ -456,13 +661,14 @@ function drawGroundTile(
 function drawPlateTile(
 	ctx: Ctx,
 	tex: Textures,
+	style: ThemeStyle,
 	x: number,
 	y: number,
 	left: boolean,
 	right: boolean,
 	camera: number,
 ): void {
-	ctx.fillStyle = tex.pattern(ctx, "plates", -camera, 0.125);
+	ctx.fillStyle = tex.pattern(ctx, style.plate, -camera, 0.125);
 	ctx.fillRect(x, y, TILE, TILE);
 	ctx.fillStyle = shade(ctx, y, TILE, "rgba(255,255,255,0.22)", "rgba(0,0,0,0.35)");
 	ctx.fillRect(x, y, TILE, TILE);
@@ -532,6 +738,81 @@ function drawTire(ctx: Ctx, cx: number, cy: number): void {
 	ctx.stroke();
 }
 
+function drawBollard(ctx: Ctx, cx: number, floor: number): void {
+	rounded(ctx, cx - 4, floor - 10, 8, 10, 2);
+	ctx.fillStyle = shade(ctx, floor - 10, 10, "#4a535d", "#1e2227");
+	ctx.fill();
+	outline(ctx, 0.7);
+	rounded(ctx, cx - 5.5, floor - 12, 11, 3, 1.5);
+	ctx.fill();
+	outline(ctx, 0.6);
+	ctx.fillStyle = "#e9c136";
+	ctx.fillRect(cx - 4, floor - 7, 8, 1.5);
+}
+
+function drawContainer(ctx: Ctx, x: number, floor: number, color: string): void {
+	const w = 14;
+	const h = 12;
+	rounded(ctx, x, floor - h, w, h, 1);
+	ctx.fillStyle = shade(ctx, floor - h, h, color, "#1a2030");
+	ctx.fill();
+	outline(ctx, 0.7);
+	ctx.strokeStyle = "rgba(0,0,0,0.35)";
+	ctx.lineWidth = 0.8;
+	ctx.beginPath();
+	for (let i = 2; i < w; i += 2.5) {
+		ctx.moveTo(x + i, floor - h + 1);
+		ctx.lineTo(x + i, floor - 1);
+	}
+	ctx.stroke();
+}
+
+function drawGasBottles(ctx: Ctx, x: number, floor: number): void {
+	for (const [bx, color] of [
+		[x + 2, "#c0392b"],
+		[x + 8, "#e9c136"],
+	] as const) {
+		rounded(ctx, bx, floor - 14, 5, 14, 2.5);
+		ctx.fillStyle = shade(ctx, floor - 14, 14, color, "#3a1a10");
+		ctx.fill();
+		outline(ctx, 0.6);
+		ctx.fillStyle = "#5a646e";
+		ctx.fillRect(bx + 1.5, floor - 16, 2, 2);
+	}
+}
+
+/** One piece of scenery in the theme's style; `kind` is a 0..1 roll fixed per column. */
+function drawDecorItem(
+	ctx: Ctx,
+	tex: Textures,
+	theme: Theme,
+	kind: number,
+	x: number,
+	floor: number,
+	camera: number,
+	tx: number,
+): void {
+	if (theme === "stocznia") {
+		if (kind > 0.5) drawBollard(ctx, x + 8, floor);
+		else drawContainer(ctx, x + 1, floor, kind > 0.25 ? "#3d6e9e" : "#b0412f");
+		return;
+	}
+	if (theme === "fabryka") {
+		if (kind > 0.5) drawGasBottles(ctx, x + 1, floor);
+		else drawBarrel(ctx, tex, x + 2, floor, camera, tx);
+		return;
+	}
+	if (kind > 0.6) {
+		drawBarrel(ctx, tex, x + 2, floor, camera, tx);
+	} else if (kind > 0.3) {
+		drawTire(ctx, x + 6, floor - 6.5);
+		drawTire(ctx, x + 10, floor - 6.5);
+		drawTire(ctx, x + 8, floor - 17);
+	} else {
+		drawTire(ctx, x + 8, floor - 6.5);
+	}
+}
+
 /** Scenery standing on open ground, placed by noise so it never moves. */
 function drawDecor(
 	ctx: Ctx,
@@ -545,22 +826,21 @@ function drawDecor(
 		if (noise(tx, 0, 41) > 0.16) continue;
 		const ty = level.rows.findIndex((row) => row[tx] === "#");
 		if (ty < 2 || level.rows[ty - 1]?.[tx] !== "." || level.rows[ty - 2]?.[tx] !== ".") continue;
-		const x = tx * TILE - camera;
-		const floor = ty * TILE;
-		const kind = noise(tx, 1, 43);
-		if (kind > 0.6) {
-			drawBarrel(ctx, tex, x + 2, floor, camera, tx);
-		} else if (kind > 0.3) {
-			drawTire(ctx, x + 6, floor - 6.5);
-			drawTire(ctx, x + 10, floor - 6.5);
-			drawTire(ctx, x + 8, floor - 17);
-		} else {
-			drawTire(ctx, x + 8, floor - 6.5);
-		}
+		drawDecorItem(
+			ctx,
+			tex,
+			level.theme,
+			noise(tx, 1, 43),
+			tx * TILE - camera,
+			ty * TILE,
+			camera,
+			tx,
+		);
 	}
 }
 
 function drawTiles(ctx: Ctx, tex: Textures, level: Level, camera: number): void {
+	const style = THEME_STYLE[level.theme];
 	const first = Math.floor(camera / TILE);
 	const last = Math.min(level.widthTiles - 1, first + VIEW_W / TILE + 1);
 	level.rows.forEach((row, ty) => {
@@ -570,8 +850,8 @@ function drawTiles(ctx: Ctx, tex: Textures, level: Level, camera: number): void 
 			const x = tx * TILE - camera;
 			const y = ty * TILE;
 			if (c === "#")
-				drawGroundTile(ctx, tex, x, y, tx, ty, level.rows[ty - 1]?.[tx] !== "#", camera);
-			else drawPlateTile(ctx, tex, x, y, row[tx - 1] !== "=", row[tx + 1] !== "=", camera);
+				drawGroundTile(ctx, tex, style, x, y, tx, ty, level.rows[ty - 1]?.[tx] !== "#", camera);
+			else drawPlateTile(ctx, tex, style, x, y, row[tx - 1] !== "=", row[tx + 1] !== "=", camera);
 		}
 	});
 	drawDecor(ctx, tex, level, camera, first, last);
@@ -986,6 +1266,101 @@ function drawAccessory(ctx: Ctx, skin: Skin, frame: number, behind: boolean): vo
 	}
 }
 
+/** Whatever Śrubek holds in the trailing claw, drawn from the claw outward. */
+function drawHandItem(ctx: Ctx, skin: Skin, frame: number): void {
+	const hx = -6.2;
+	const hy = -5.2;
+	const accent = skin.accent;
+	const stick = (tx: number, ty: number, color: string, width: number): void => {
+		ctx.strokeStyle = color;
+		ctx.lineWidth = width;
+		ctx.lineCap = "round";
+		ctx.beginPath();
+		ctx.moveTo(hx, hy);
+		ctx.lineTo(tx, ty);
+		ctx.stroke();
+	};
+	switch (skin.hand) {
+		case "klucz":
+			stick(-10, -14, "#8d939b", 1.8);
+			ctx.beginPath();
+			ctx.arc(-10.6, -15.6, 2.6, Math.PI * 0.15, Math.PI * 1.65);
+			ctx.lineWidth = 1.8;
+			ctx.strokeStyle = "#c9d2da";
+			ctx.stroke();
+			return;
+		case "mlotek":
+			stick(-9.5, -14.5, "#8a5a2a", 1.6);
+			ctx.save();
+			ctx.translate(-9.5, -14.5);
+			ctx.rotate(-0.35);
+			rounded(ctx, -4.5, -2.2, 9, 4.4, 1);
+			ctx.fillStyle = shade(ctx, -2.2, 4.4, "#c9d2da", "#4a535d");
+			ctx.fill();
+			outline(ctx, 0.6);
+			ctx.restore();
+			return;
+		case "flaga": {
+			stick(-7, -27, "#9aa3ad", 1);
+			const wave = Math.sin(frame / 6) * 1.5;
+			ctx.beginPath();
+			ctx.moveTo(-7, -27);
+			ctx.quadraticCurveTo(-11, -27 + wave, -15, -25.5 + wave);
+			ctx.lineTo(-15, -20.5 + wave);
+			ctx.quadraticCurveTo(-11, -21.5 - wave, -7, -21);
+			ctx.closePath();
+			ctx.fillStyle = shade(ctx, -27, 7, tint(accent, 0.3), tint(accent, -0.3));
+			ctx.fill();
+			outline(ctx, 0.5);
+			sphere(ctx, -7, -27.5, 1, "#ffe58a", "#b8860b");
+			return;
+		}
+		case "lizak":
+			stick(-8.5, -13, "#f4f7fa", 1);
+			sphere(ctx, -8.5, -15.5, 3.4, tint(accent, 0.5), accent);
+			ctx.strokeStyle = "rgba(255,255,255,0.85)";
+			ctx.lineWidth = 0.8;
+			ctx.beginPath();
+			for (let a = 0; a < Math.PI * 4; a += 0.3) {
+				const r = (a / (Math.PI * 4)) * 3;
+				ctx.lineTo(-8.5 + Math.cos(a + frame / 20) * r, -15.5 + Math.sin(a + frame / 20) * r);
+			}
+			ctx.stroke();
+			return;
+		case "balonik": {
+			const sway = Math.sin(frame / 15) * 1.5;
+			ctx.strokeStyle = "rgba(240,240,240,0.8)";
+			ctx.lineWidth = 0.5;
+			ctx.beginPath();
+			ctx.moveTo(hx, hy);
+			ctx.quadraticCurveTo(-13 + sway, -16, -11 + sway, -27);
+			ctx.stroke();
+			ctx.beginPath();
+			ctx.ellipse(-11 + sway, -31, 4, 5, 0.1, 0, Math.PI * 2);
+			const g = ctx.createRadialGradient(-12.5 + sway, -33, 0.5, -11 + sway, -31, 5);
+			g.addColorStop(0, tint(accent, 0.6));
+			g.addColorStop(1, accent);
+			ctx.fillStyle = g;
+			ctx.fill();
+			outline(ctx, 0.5);
+			return;
+		}
+		case "parasol":
+			stick(-6, -27, "#2b2f36", 1);
+			ctx.beginPath();
+			ctx.arc(-6, -26, 9, Math.PI, 0);
+			for (let i = 4; i >= 0; i--)
+				ctx.quadraticCurveTo(-6 - 9 + i * 4.5 + 2.25, -24, -6 - 9 + i * 4.5, -26);
+			ctx.closePath();
+			ctx.fillStyle = shade(ctx, -35, 9, tint(accent, 0.3), tint(accent, -0.35));
+			ctx.fill();
+			outline(ctx, 0.6);
+			return;
+		default:
+			return;
+	}
+}
+
 function drawHead(ctx: Ctx, skin: Skin, frame: number, legPhase: number): void {
 	// Rounded helmet with a glossy top.
 	ctx.beginPath();
@@ -1080,6 +1455,7 @@ function drawSrubek(ctx: Ctx, p: Player, skin: Skin, frame: number, camera: numb
 	ctx.fill();
 	outline(ctx, 0.6);
 	sphere(ctx, -6.2, -5.2, 2, "#ff9c84", "#c23b25");
+	drawHandItem(ctx, skin, frame);
 
 	drawHead(ctx, skin, frame, legPhase);
 	ctx.restore();
@@ -1445,12 +1821,118 @@ function drawProjectiles(ctx: Ctx, world: World, camera: number): void {
 	drawPouch(ctx, world, camera);
 }
 
+function drawSpikes(ctx: Ctx, x: number, y: number): void {
+	for (let i = 0; i < 3; i++) {
+		const sx = x + 1 + i * 5;
+		ctx.beginPath();
+		ctx.moveTo(sx, y + TILE);
+		ctx.lineTo(sx + 2.5, y + 6);
+		ctx.lineTo(sx + 5, y + TILE);
+		ctx.closePath();
+		const g = ctx.createLinearGradient(sx, 0, sx + 5, 0);
+		g.addColorStop(0, "#5a646e");
+		g.addColorStop(0.45, "#eef3f7");
+		g.addColorStop(1, "#4a535d");
+		ctx.fillStyle = g;
+		ctx.fill();
+		outline(ctx, 0.6);
+		ctx.fillStyle = "#c23b25";
+		ctx.beginPath();
+		ctx.arc(sx + 2.5, y + 7, 0.9, 0, Math.PI * 2);
+		ctx.fill();
+	}
+}
+
+function drawSpring(ctx: Ctx, x: number, y: number, frame: number): void {
+	const squash = Math.sin(frame / 10) * 0.6;
+	rounded(ctx, x + 1, y + TILE - 3, TILE - 2, 3, 1);
+	ctx.fillStyle = "#3a3f49";
+	ctx.fill();
+	ctx.strokeStyle = "#c9d2da";
+	ctx.lineWidth = 1.4;
+	ctx.beginPath();
+	const top = y + 7 + squash;
+	for (let i = 0; i <= 4; i++) {
+		const yy = y + TILE - 3 - ((y + TILE - 3 - top) * i) / 4;
+		ctx.lineTo(x + (i % 2 ? 4 : TILE - 4), yy);
+	}
+	ctx.stroke();
+	rounded(ctx, x + 1, top - 3, TILE - 2, 3.5, 1.5);
+	ctx.fillStyle = shade(ctx, top - 3, 3.5, "#ffb070", "#c2501c");
+	ctx.fill();
+	outline(ctx, 0.6);
+	glow(ctx, x + TILE / 2, top - 2, 8, "rgba(255,170,80,A)", 0.3);
+}
+
+function drawPlatform(ctx: Ctx, pl: Platform, frame: number, camera: number): void {
+	const x = Math.round(pl.x - camera);
+	if (pl.kind === "mover") {
+		// Rail it rides, then the deck with hazard ends.
+		ctx.strokeStyle = "rgba(160,170,180,0.35)";
+		ctx.lineWidth = 1;
+		ctx.setLineDash([3, 3]);
+		ctx.beginPath();
+		ctx.moveTo(pl.minX - camera, pl.y + 4);
+		ctx.lineTo(pl.maxX + pl.w - camera, pl.y + 4);
+		ctx.stroke();
+		ctx.setLineDash([]);
+		rounded(ctx, x, pl.y, pl.w, pl.h, 2);
+		ctx.fillStyle = shade(ctx, pl.y, pl.h, "#c9d2da", "#4a535d");
+		ctx.fill();
+		outline(ctx, 0.8);
+		rim(ctx, 0.4);
+		for (const ex of [x, x + pl.w - 6]) {
+			for (let i = 0; i < 2; i++) {
+				ctx.fillStyle = i % 2 ? "#1b1a22" : "#e9c136";
+				ctx.fillRect(ex + i * 3, pl.y + 1, 3, pl.h - 2);
+			}
+		}
+		for (const wx of [x + 10, x + pl.w - 10])
+			sphere(ctx, wx, pl.y + pl.h + 1.5, 2, "#8d939b", "#2b2f36");
+		return;
+	}
+	// Trapdoor: a hinged hatch that rattles before it drops open.
+	if (pl.openLeft > 0) {
+		ctx.save();
+		ctx.translate(x + 1, pl.y + 1);
+		ctx.rotate(Math.PI / 2.3);
+		rounded(ctx, 0, -2, TILE - 2, 4, 1);
+		ctx.fillStyle = shade(ctx, -2, 4, "#a67c52", "#5a3a20");
+		ctx.fill();
+		outline(ctx, 0.6);
+		ctx.restore();
+		return;
+	}
+	const shake = pl.timer > 6 ? Math.sin(frame * 1.7) * Math.min(1.5, pl.timer / 12) : 0;
+	rounded(ctx, x + shake, pl.y, pl.w, 5, 1);
+	ctx.fillStyle = shade(ctx, pl.y, 5, "#c99a6a", "#6a4424");
+	ctx.fill();
+	outline(ctx, 0.7);
+	ctx.strokeStyle = "rgba(60,35,15,0.6)";
+	ctx.lineWidth = 0.6;
+	ctx.beginPath();
+	ctx.moveTo(x + shake + 5, pl.y + 0.5);
+	ctx.lineTo(x + shake + 5, pl.y + 4.5);
+	ctx.moveTo(x + shake + 11, pl.y + 0.5);
+	ctx.lineTo(x + shake + 11, pl.y + 4.5);
+	ctx.stroke();
+	sphere(ctx, x + 1.5, pl.y + 2.5, 1.3, "#e6ecf1", "#4a535d");
+}
+
+function drawObstacles(ctx: Ctx, world: World, camera: number): void {
+	const frame = world.frame;
+	for (const k of world.level.spikes) drawSpikes(ctx, k.x * TILE - camera, k.y * TILE);
+	for (const j of world.level.springs) drawSpring(ctx, j.x * TILE - camera, j.y * TILE, frame);
+	for (const pl of world.platforms) drawPlatform(ctx, pl, frame, camera);
+}
+
 function drawActors(ctx: Ctx, world: World, camera: number, skin: Skin): void {
 	if (world.boss) drawBoss(ctx, world.boss, world.frame, camera, world);
 	const frame = world.frame;
 	for (const c of world.level.chargers) drawCharger(ctx, c.x * TILE - camera, c.y * TILE, frame);
 	for (const g of world.level.gates) drawGate(ctx, g.x * TILE - camera, (g.y - 2) * TILE, frame);
 	for (const p of world.presses) drawPress(ctx, p, camera);
+	drawObstacles(ctx, world, camera);
 	drawPickups(ctx, world, camera);
 	drawProjectiles(ctx, world, camera);
 	for (const d of world.dogs) if (d.alive) drawDog(ctx, d.x - camera, d.y, d.dir, frame);

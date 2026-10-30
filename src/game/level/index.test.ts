@@ -1,3 +1,4 @@
+import { MAX_GAP, MAX_SPIKES, MAX_STEP, proceduralSegment, STRIP } from "./chunks";
 import {
 	buildLevel,
 	difficulty,
@@ -125,5 +126,84 @@ describe("generator", () => {
 		expect(hasExtraLife(1)).toBe(false);
 		const n = [...Array(60).keys()].map((i) => i + 2).find((i) => hasExtraLife(i));
 		if (n) expect(buildLevel(n).pickups.some((p) => p.kind === "life")).toBe(true);
+	});
+});
+
+describe("chunk generator", () => {
+	/** Top of the ground in a column, or undefined over a pit. */
+	function groundTop(rows: string[], x: number): number | undefined {
+		for (let y = 9; y < ROWS; y++) if (rows[y]?.[x] === "#") return y;
+		return undefined;
+	}
+
+	const cases: [number, number][] = [];
+	for (let seed = 1; seed <= 300; seed++) cases.push([seed, (seed % 3) / 2]);
+
+	function expectEnds(rows: string[]): void {
+		for (const x of [0, 1, 2, STRIP - 3, STRIP - 2, STRIP - 1]) {
+			expect(groundTop(rows, x)).toBe(14);
+			expect(rows[13]?.[x]).toBe(".");
+		}
+	}
+
+	function expectSteps(rows: string[]): void {
+		for (let x = 1; x < STRIP; x++) {
+			const a = groundTop(rows, x - 1);
+			const b = groundTop(rows, x);
+			if (a === undefined || b === undefined) continue;
+			expect(Math.abs(a - b)).toBeLessThanOrEqual(MAX_STEP);
+		}
+	}
+
+	function expectHazardsGrounded(rows: string[]): void {
+		for (const run of (rows[13] ?? "").match(/k+/g) ?? []) {
+			expect(run.length).toBeLessThanOrEqual(MAX_SPIKES);
+		}
+		for (let x = 0; x < STRIP; x++) {
+			const c = rows[13]?.[x];
+			if (c === "k" || c === "j") expect(rows[14]?.[x]).toBe("#");
+		}
+	}
+
+	it.each(cases)("strip %i at difficulty %f keeps the passability rules", (seed, d) => {
+		const rows = proceduralSegment(seed, d);
+		expect(rows).toHaveLength(ROWS);
+		for (const row of rows) expect(row).toHaveLength(STRIP);
+		// Level floor and clear air at both ends, so strips join and mirror.
+		expectEnds(rows);
+		for (const pit of (rows[ROWS - 1] ?? "").split("#"))
+			expect(pit.length).toBeLessThanOrEqual(MAX_GAP);
+		expectSteps(rows);
+		expectHazardsGrounded(rows);
+	});
+
+	it("is the same for the same seed and differs between seeds", () => {
+		expect(proceduralSegment(5, 0.5)).toEqual(proceduralSegment(5, 0.5));
+		const distinct = new Set([1, 2, 3, 4, 5, 6].map((s) => proceduralSegment(s, 0.5).join("")));
+		expect(distinct.size).toBe(6);
+	});
+
+	it("puts every new obstacle into real levels and keeps all pits crossable", () => {
+		const seen = { spikes: 0, springs: 0, traps: 0, movers: 0 };
+		for (let n = 2; n <= 150; n++) {
+			const level = buildLevel(n);
+			seen.spikes += level.spikes.length;
+			seen.springs += level.springs.length;
+			seen.traps += level.traps.length;
+			seen.movers += level.movers.length;
+			const bottom = level.rows[ROWS - 1] ?? "";
+			for (const pit of bottom.split("#")) expect(pit.length).toBeLessThanOrEqual(MAX_GAP);
+			expect(level.segments.filter((s) => s === "losowy")).toHaveLength(2);
+		}
+		for (const count of Object.values(seen)) expect(count).toBeGreaterThan(5);
+	});
+
+	it("rotates through the three themes", () => {
+		expect([1, 2, 3, 4].map((n) => buildLevel(n).theme)).toEqual([
+			"zlomowisko",
+			"stocznia",
+			"fabryka",
+			"zlomowisko",
+		]);
 	});
 });

@@ -25,10 +25,13 @@ import Layout from "@/layouts/Layout.astro";
 						<label class="hint flex flex-col gap-1 text-sm tracking-wide text-amber-100">Dodatki
 							<input id="skin-accent" type="color" class="h-8 w-full cursor-pointer rounded border border-amber-300/40 bg-neutral-900" />
 						</label>
+						<label class="hint col-span-3 flex flex-col gap-1 text-sm tracking-wide text-amber-100 sm:col-span-1">W ręce
+							<select id="skin-hand" class="h-8 rounded border border-amber-300/40 bg-neutral-900 px-2 text-sm text-amber-50"></select>
+						</label>
 						<label class="hint col-span-3 flex flex-col gap-1 text-sm tracking-wide text-amber-100 sm:col-span-1">Na głowie
 							<select id="skin-hat" class="h-8 rounded border border-amber-300/40 bg-neutral-900 px-2 text-sm text-amber-50"></select>
 						</label>
-						<label class="hint col-span-3 flex flex-col gap-1 text-sm tracking-wide text-amber-100 sm:col-span-2">Dodatek
+						<label class="hint col-span-3 flex flex-col gap-1 text-sm tracking-wide text-amber-100 sm:col-span-1">Dodatek
 							<select id="skin-accessory" class="h-8 rounded border border-amber-300/40 bg-neutral-900 px-2 text-sm text-amber-50"></select>
 						</label>
 					</div>
@@ -215,6 +218,7 @@ import Layout from "@/layouts/Layout.astro";
 	const skinAccent = document.getElementById("skin-accent");
 	const skinHat = document.getElementById("skin-hat");
 	const skinAccessory = document.getElementById("skin-accessory");
+	const skinHand = document.getElementById("skin-hand");
 	const stage = document.getElementById("stage");
 	const pad = document.getElementById("pad");
 	const fullscreen = document.getElementById("fullscreen");
@@ -245,7 +249,8 @@ import Layout from "@/layouts/Layout.astro";
 		skinEyes instanceof HTMLInputElement &&
 		skinAccent instanceof HTMLInputElement &&
 		skinHat instanceof HTMLSelectElement &&
-		skinAccessory instanceof HTMLSelectElement
+		skinAccessory instanceof HTMLSelectElement &&
+		skinHand instanceof HTMLSelectElement
 	) {
 		let game: Game | undefined;
 		const board = mountBoard({ modal, form, nick, note }, (rows) => game?.setBoard(rows));
@@ -275,7 +280,7 @@ import Layout from "@/layouts/Layout.astro";
 				else if (e.code === "Enter" && !menu.hidden && !(e.target instanceof HTMLInputElement)) setMenu(false);
 			});
 			mountWardrobe(
-				{ presets, body: skinBody, eyes: skinEyes, accent: skinAccent, hat: skinHat, accessory: skinAccessory },
+				{ presets, body: skinBody, eyes: skinEyes, accent: skinAccent, hat: skinHat, accessory: skinAccessory, hand: skinHand },
 				game,
 			);
 		});

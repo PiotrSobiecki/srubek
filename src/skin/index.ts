@@ -6,6 +6,7 @@
 
 export type Hat = "none" | "antena" | "kask" | "czapka" | "korona" | "cylinder";
 export type Accessory = "none" | "szalik" | "plecak" | "pelerynka" | "okulary";
+export type HandItem = "none" | "klucz" | "mlotek" | "flaga" | "lizak" | "balonik" | "parasol";
 
 export interface Skin {
 	/** Light, mid and dark of the shell. */
@@ -14,6 +15,8 @@ export interface Skin {
 	accent: string;
 	hat: Hat;
 	accessory: Accessory;
+	/** What the trailing claw holds. */
+	hand: HandItem;
 }
 
 export const HATS: readonly Hat[] = ["antena", "kask", "czapka", "korona", "cylinder", "none"];
@@ -25,12 +28,23 @@ export const ACCESSORIES: readonly Accessory[] = [
 	"okulary",
 ];
 
+export const HANDS: readonly HandItem[] = [
+	"none",
+	"klucz",
+	"mlotek",
+	"flaga",
+	"lizak",
+	"balonik",
+	"parasol",
+];
+
 export const DEFAULT_SKIN: Skin = {
 	body: "#aab5bf",
 	eyes: "#2fd3c6",
 	accent: "#e07b1c",
 	hat: "antena",
 	accessory: "none",
+	hand: "none",
 };
 
 export const PRESETS: Record<string, Skin> = {
@@ -41,6 +55,7 @@ export const PRESETS: Record<string, Skin> = {
 		accent: "#f5c242",
 		hat: "kask",
 		accessory: "plecak",
+		hand: "mlotek",
 	},
 	Kosmita: {
 		body: "#6fd36f",
@@ -48,6 +63,7 @@ export const PRESETS: Record<string, Skin> = {
 		accent: "#b48cff",
 		hat: "antena",
 		accessory: "okulary",
+		hand: "balonik",
 	},
 	Król: {
 		body: "#f1c232",
@@ -55,6 +71,7 @@ export const PRESETS: Record<string, Skin> = {
 		accent: "#c0392b",
 		hat: "korona",
 		accessory: "pelerynka",
+		hand: "flaga",
 	},
 	Dżentelmen: {
 		body: "#2b2f36",
@@ -62,8 +79,24 @@ export const PRESETS: Record<string, Skin> = {
 		accent: "#e74c3c",
 		hat: "cylinder",
 		accessory: "szalik",
+		hand: "parasol",
 	},
-	Zima: { body: "#dfe7ee", eyes: "#4aa3ff", accent: "#ff6a3d", hat: "czapka", accessory: "szalik" },
+	Zima: {
+		body: "#dfe7ee",
+		eyes: "#4aa3ff",
+		accent: "#ff6a3d",
+		hat: "czapka",
+		accessory: "szalik",
+		hand: "lizak",
+	},
+	Mechanik: {
+		body: "#7a8794",
+		eyes: "#ffd27a",
+		accent: "#3d6e9e",
+		hat: "kask",
+		accessory: "none",
+		hand: "klucz",
+	},
 };
 
 const KEY = "srubek.skin";
@@ -83,6 +116,7 @@ export function normalizeSkin(raw: unknown): Skin {
 		accessory: ACCESSORIES.includes(r.accessory as Accessory)
 			? (r.accessory as Accessory)
 			: DEFAULT_SKIN.accessory,
+		hand: HANDS.includes(r.hand as HandItem) ? (r.hand as HandItem) : DEFAULT_SKIN.hand,
 	};
 }
 

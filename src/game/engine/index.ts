@@ -32,6 +32,10 @@ const PHYSICS = {
 	slideFriction: 0.05,
 	/** Press cycle, in frames and pixels per frame. */
 	pressWait: 70,
+	springVelocity: -7.2,
+	/** Frames standing on a trapdoor before it gives way, and how long it hangs open. */
+	trapHold: 24,
+	trapOpen: 120,
 	pressDrop: 5,
 	pressHold: 25,
 	pressRise: 1,
@@ -137,6 +141,25 @@ interface Mega {
 	vx: number;
 }
 
+/** Something Śrubek can land on from above: a moving platform or a trapdoor. */
+export interface Platform {
+	kind: "mover" | "trap";
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+	minX: number;
+	maxX: number;
+	dir: 1 | -1;
+	/** Pixels moved this frame, carried onto whoever rides it. */
+	dx: number;
+	/** Frames a trapdoor has been stood on. */
+	timer: number;
+	/** Frames a trapdoor stays open; 0 while shut. */
+	openLeft: number;
+	stood: boolean;
+}
+
 export interface World {
 	level: Level;
 	player: Player;
@@ -145,6 +168,7 @@ export interface World {
 	scraps: Scrap[];
 	dogs: Dog[];
 	presses: Press[];
+	platforms: Platform[];
 	boss?: Boss;
 	/** Scrap fired by a boss; it hurts Śrubek and vanishes on landing. */
 	shots: Shot[];
@@ -171,7 +195,8 @@ export type GameEvent =
 	| { type: "slam" }
 	| { type: "bossHit" }
 	| { type: "bossDown"; boss: string }
-	| { type: "megaFired" };
+	| { type: "megaFired" }
+	| { type: "spring" };
 
 /** Pieces Śrubek carries over from the previous world, already in the pouch. */
 export function carriedScrap(world: World | undefined): number {
@@ -248,6 +273,42 @@ export function createWorld(level: Level, boss?: Boss, carried = 0): World {
 			// Staggered so a corridor of presses never drops in unison.
 			timer: Math.round(PHYSICS.pressWait * level.tempo) - ((i * 23) % PHYSICS.pressWait),
 		})),
+		platforms: [
+			...level.movers.map((m): Platform => {
+				const minX = m.x0 * TILE;
+				const maxX = Math.max(minX, (m.x1 - 2) * TILE);
+				return {
+					kind: "mover",
+					x: Math.max(minX, Math.min(maxX, m.x * TILE)),
+					y: m.y * TILE,
+					w: 3 * TILE,
+					h: 8,
+					minX,
+					maxX,
+					dir: 1,
+					dx: 0,
+					timer: 0,
+					openLeft: 0,
+					stood: false,
+				};
+			}),
+			...level.traps.map(
+				(t): Platform => ({
+					kind: "trap",
+					x: t.x * TILE,
+					y: t.y * TILE,
+					w: TILE,
+					h: 8,
+					minX: t.x * TILE,
+					maxX: t.x * TILE,
+					dir: 1,
+					dx: 0,
+					timer: 0,
+					openLeft: 0,
+					stood: false,
+				}),
+			),
+		],
 		shots: [],
 		megas: [],
 		megaBalls: 0,
@@ -644,12 +705,91 @@ function touchPickups(world: World, events: GameEvent[]): void {
 	}
 }
 
+function movePlatforms(world: World): void {
+	for (const pl of world.platforms) {
+		if (pl.kind !== "mover") continue;
+		const before = pl.x;
+		pl.x += pl.dir;
+		if (pl.x >= pl.maxX) {
+			pl.x = pl.maxX;
+			pl.dir = -1;
+		} else if (pl.x <= pl.minX) {
+			pl.x = pl.minX;
+			pl.dir = 1;
+		}
+		pl.dx = pl.x - before;
+	}
+}
+
+/** True while a platform can be stood on (an open trapdoor cannot). */
+function platformSolid(pl: Platform): boolean {
+	return pl.kind === "mover" || pl.openLeft === 0;
+}
+
+/** One-way landing: falling onto a platform from above stops Śrubek on it and carries him along. */
+function ridePlatforms(world: World): void {
+	const p = world.player;
+	for (const pl of world.platforms) {
+		pl.stood = false;
+		if (!platformSolid(pl) || p.vy < 0) continue;
+		const bottom = p.y + p.h;
+		const over = p.x + p.w > pl.x + 1 && p.x < pl.x + pl.w - 1;
+		if (!over || bottom < pl.y - 1 || bottom > pl.y + 7) continue;
+		p.y = pl.y - p.h;
+		p.vy = 0;
+		p.sy = 0;
+		p.onGround = true;
+		pl.stood = true;
+		if (pl.dx !== 0 && !overlapsSolid(world.level, p.x + pl.dx, p.y, p.w, p.h)) p.x += pl.dx;
+	}
+}
+
+function stepTraps(world: World): void {
+	for (const pl of world.platforms) {
+		if (pl.kind !== "trap") continue;
+		if (pl.openLeft > 0) {
+			pl.openLeft -= 1;
+			if (pl.openLeft === 0) pl.timer = 0;
+			continue;
+		}
+		pl.timer = pl.stood ? pl.timer + 1 : 0;
+		if (pl.timer >= PHYSICS.trapHold) pl.openLeft = PHYSICS.trapOpen;
+	}
+}
+
+/** Spikes hurt on touch; a spring throws Śrubek high when he lands or rolls onto it. */
+function touchHazards(world: World, events: GameEvent[]): void {
+	const p = world.player;
+	for (const k of world.level.spikes) {
+		if (overlaps(p, k.x * TILE + 1, k.y * TILE + 8, TILE - 2, 8))
+			hurt(p, k.x * TILE + TILE / 2, events);
+	}
+	for (const j of world.level.springs) {
+		if (p.vy < 0 || !overlaps(p, j.x * TILE + 1, j.y * TILE + 8, TILE - 2, 8)) continue;
+		p.vy = PHYSICS.springVelocity;
+		p.sy = 0;
+		p.holdLeft = 0;
+		p.airJumps = 1;
+		p.onGround = false;
+		world.effects.push({
+			kind: "dust",
+			x: j.x * TILE + TILE / 2,
+			y: j.y * TILE + TILE,
+			frame: world.frame,
+		});
+		events.push({ type: "spring" });
+	}
+}
+
 export function step(world: World, input: Input): GameEvent[] {
 	const p = world.player;
 	const events: GameEvent[] = [];
 	control(p, input, events);
 	moveX(world);
 	moveY(world);
+	movePlatforms(world);
+	ridePlatforms(world);
+	stepTraps(world);
 	moveDrones(world);
 	moveDogs(world);
 	magnet(world, input, events);
@@ -668,6 +808,7 @@ export function step(world: World, input: Input): GameEvent[] {
 	touchDogs(world, events);
 	touchPresses(world, events);
 	touchPickups(world, events);
+	touchHazards(world, events);
 	stepBoss(world, events);
 	moveShots(world, events);
 	moveMegas(world, events);

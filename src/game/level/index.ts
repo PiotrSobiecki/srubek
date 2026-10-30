@@ -7,7 +7,10 @@
  *   `v` drone, patrolling the run of `-` it sits in   `c` charger
  *   `s` scrap the magnet can throw   `w` dog-machine walking its platform
  *   `^` press resting under a ceiling, dropping to the floor below   `g` factory gate
+ *   `k` spikes   `j` spring   `t` trapdoor   `m` moving platform on its run of `_`
  */
+
+import { proceduralSegment, rng } from "./chunks";
 
 export const TILE = 16;
 export const ROWS = 16;
@@ -17,17 +20,21 @@ export interface Vec {
 	y: number;
 }
 
-/** A drone and the tile span it patrols, inclusive. */
+/** A drone or moving platform and the tile span it travels, inclusive. */
 interface DroneSpec extends Vec {
 	x0: number;
 	x1: number;
 }
 
-export type SegmentName = "nuts" | "drones" | "gap" | "dog" | "towers" | "bridge" | "presses";
+/** Hand-made segments; `losowy` is a strip built by the chunk generator. */
+type HandMade = "nuts" | "drones" | "gap" | "dog" | "towers" | "bridge" | "presses";
+export type SegmentName = HandMade | "losowy";
 
 export type PickupKind = "nut" | "bolt" | "gear" | "cell" | "life";
 
-export type Theme = "zlomowisko" | "stocznia";
+export type Theme = "zlomowisko" | "stocznia" | "fabryka";
+
+const THEMES: readonly Theme[] = ["zlomowisko", "stocznia", "fabryka"];
 
 interface Pickup extends Vec {
 	kind: PickupKind;
@@ -44,13 +51,17 @@ export interface Level {
 	dogs: Vec[];
 	presses: Vec[];
 	gates: Vec[];
+	spikes: Vec[];
+	springs: Vec[];
+	traps: Vec[];
+	movers: DroneSpec[];
 	segments: SegmentName[];
 	/** Press cycle multiplier: 1 at the start, shorter as levels harden. */
 	tempo: number;
 	theme: Theme;
 }
 
-const SEGMENTS: Record<SegmentName, string[]> = {
+const SEGMENTS: Record<HandMade, string[]> = {
 	nuts: [
 		"............................................................",
 		"............................................................",
@@ -187,8 +198,8 @@ const PICKUP_CHARS: Record<string, PickupKind | undefined> = {
 	l: "life",
 };
 
-function trackSpan(row: string, x: number): [number, number] {
-	const onTrack = (i: number) => row[i] === "-" || row[i] === "v";
+function trackSpan(row: string, x: number, marks = "-v"): [number, number] {
+	const onTrack = (i: number) => marks.includes(row[i] ?? "#");
 	let x0 = x;
 	let x1 = x;
 	while (onTrack(x0 - 1)) x0 -= 1;
@@ -205,6 +216,10 @@ export function levelFromRows(rows: string[], segments: SegmentName[] = []): Lev
 	const dogs: Vec[] = [];
 	const presses: Vec[] = [];
 	const gates: Vec[] = [];
+	const spikes: Vec[] = [];
+	const springs: Vec[] = [];
+	const traps: Vec[] = [];
+	const movers: DroneSpec[] = [];
 	let spawn: Vec = { x: 1, y: 1 };
 	const lists: Record<string, Vec[]> = {
 		c: chargers,
@@ -212,6 +227,9 @@ export function levelFromRows(rows: string[], segments: SegmentName[] = []): Lev
 		w: dogs,
 		"^": presses,
 		g: gates,
+		k: spikes,
+		j: springs,
+		t: traps,
 	};
 	rows.forEach((row, y) => {
 		for (let x = 0; x < row.length; x++) {
@@ -223,6 +241,10 @@ export function levelFromRows(rows: string[], segments: SegmentName[] = []): Lev
 			if (c === "v") {
 				const [x0, x1] = trackSpan(row, x);
 				drones.push({ x, y, x0, x1 });
+			}
+			if (c === "m") {
+				const [x0, x1] = trackSpan(row, x, "_m");
+				movers.push({ x, y, x0, x1 });
 			}
 		}
 	});
@@ -237,6 +259,10 @@ export function levelFromRows(rows: string[], segments: SegmentName[] = []): Lev
 		dogs,
 		presses,
 		gates,
+		spikes,
+		springs,
+		traps,
+		movers,
 		segments,
 		tempo: 1,
 		theme: "zlomowisko",
@@ -260,18 +286,6 @@ export function buildArena(): Level {
 	return levelFromRows(rows, []);
 }
 
-/** Deterministic 0..1 stream from a seed (mulberry32). */
-function rng(seed: number): () => number {
-	let a = seed >>> 0;
-	return () => {
-		a = (a + 0x6d2b79f5) >>> 0;
-		let t = a;
-		t = Math.imul(t ^ (t >>> 15), t | 1);
-		t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-	};
-}
-
 /**
  * 0 at level 1, 1 from level 100 on. Squared so the first fifty levels stay
  * gentle and the climb comes between 50 and 100.
@@ -282,7 +296,7 @@ export function difficulty(n: number): number {
 }
 
 /** Extra hazards a segment gains as difficulty rises, in the order they are added. */
-const HARDER: Record<SegmentName, { x: number; y: number; c: string }[]> = {
+const HARDER: Record<HandMade, { x: number; y: number; c: string }[]> = {
 	nuts: [],
 	towers: [
 		{ x: 50, y: 13, c: "v" },
@@ -326,7 +340,7 @@ function addCompanions(rows: string[], e: { x: number; y: number; c: string }): 
 	if (e.c === ".") setChar(rows, e.x, e.y + 1, ".");
 }
 
-function harden(name: SegmentName, d: number): string[] {
+function harden(name: HandMade, d: number): string[] {
 	const rows = [...(SEGMENTS[name] ?? [])];
 	const extras = HARDER[name];
 	const count = Math.round(d * extras.length);
@@ -338,14 +352,15 @@ function harden(name: SegmentName, d: number): string[] {
 }
 
 /**
- * Levels past the first draw four of the six open segments in a shuffled
- * order, each possibly mirrored; the presses and the gate stay last.
+ * Levels past the first draw two of the six open hand-made segments and two
+ * generated strips, shuffled and each possibly mirrored; the presses and the
+ * gate stay last.
  */
 function segmentOrder(n: number): { names: SegmentName[]; mirrored: boolean[] } {
-	const teach: SegmentName[] = ["nuts", "drones", "gap", "dog"];
+	const teach: HandMade[] = ["nuts", "drones", "gap", "dog"];
 	if (n === 1)
 		return { names: [...teach, "presses"], mirrored: teach.map(() => false).concat(false) };
-	const pool: SegmentName[] = [...teach, "towers", "bridge"];
+	const pool: HandMade[] = [...teach, "towers", "bridge"];
 	const next = rng(n * 7919);
 	for (let i = pool.length - 1; i > 0; i--) {
 		const j = Math.floor(next() * (i + 1));
@@ -356,9 +371,30 @@ function segmentOrder(n: number): { names: SegmentName[]; mirrored: boolean[] } 
 			pool[j] = a;
 		}
 	}
-	const names = [...pool.slice(0, 4), "presses" as const];
+	const open: SegmentName[] = [...pool.slice(0, 2), "losowy", "losowy"];
+	for (let i = open.length - 1; i > 0; i--) {
+		const j = Math.floor(next() * (i + 1));
+		const a = open[i];
+		const b = open[j];
+		if (a !== undefined && b !== undefined) {
+			open[i] = b;
+			open[j] = a;
+		}
+	}
+	const names: SegmentName[] = [...open, "presses"];
 	const mirrored = names.map((name) => name !== "presses" && next() < 0.5);
 	return { names, mirrored };
+}
+
+/** Puts the extra life over the first open patch of floor it finds. */
+function placeLife(rows: string[]): void {
+	for (let x = 12; x < 50; x++) {
+		const clear = rows[12]?.[x] === "." && rows[13]?.[x] === ".";
+		if (clear && rows[14]?.[x] === "#") {
+			setChar(rows, x, 12, "l");
+			return;
+		}
+	}
 }
 
 function mirror(rows: string[]): string[] {
@@ -373,16 +409,19 @@ export function hasExtraLife(n: number): boolean {
 export function buildLevel(n: number): Level {
 	const d = difficulty(n);
 	const { names, mirrored } = segmentOrder(n);
-	const parts = names.map((name, i) => (mirrored[i] ? mirror(harden(name, d)) : harden(name, d)));
+	const parts = names.map((name, i) => {
+		const rows = name === "losowy" ? proceduralSegment(n * 1009 + i * 97, d) : harden(name, d);
+		return mirrored[i] ? mirror(rows) : rows;
+	});
 	if (hasExtraLife(n)) {
 		const first = parts[0];
-		if (first) setChar(first, 20, 12, "l");
+		if (first) placeLife(first);
 	}
 	const rows = Array.from({ length: ROWS }, (_, y) => parts.map((p) => p[y] ?? "").join(""));
 	const level = levelFromRows(rows, names);
 	// Every run starts at the left edge, whatever segment landed there.
 	if (n > 1) level.spawn = { x: 1, y: 12 };
 	level.tempo = 1 - 0.45 * d;
-	level.theme = n % 2 === 0 ? "stocznia" : "zlomowisko";
+	level.theme = THEMES[(n - 1) % THEMES.length] ?? "zlomowisko";
 	return level;
 }

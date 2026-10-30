@@ -138,6 +138,7 @@ const BY_EVENT: Partial<Record<GameEvent["type"], SoundName>> = {
 	bossHit: "gear",
 	bossDown: "gate",
 	megaFired: "mega",
+	spring: "airjump",
 };
 
 /** `track` picks /music/level<n>.mp3; the pack has 1..3. */

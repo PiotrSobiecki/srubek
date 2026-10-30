@@ -459,3 +459,87 @@ describe("carried pouch and the mega ball", () => {
 		expect(world.megas).toHaveLength(0);
 	});
 });
+
+describe("obstacles", () => {
+	const COURSE = levelFromRows([
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....m____...........",
+		"..P......k..j.......",
+		"####...######tt#####",
+		"####...######..#####",
+	]);
+
+	it("spikes hurt on touch", () => {
+		const world = createWorld(COURSE);
+		world.player.x = 9 * TILE + 2;
+		world.player.y = 14 * TILE - world.player.h;
+		expect(step(world, IDLE)).toContainEqual({ type: "hit" });
+	});
+
+	it("a spring throws Śrubek far higher than a jump", () => {
+		const world = createWorld(COURSE);
+		world.player.x = 12 * TILE + 2;
+		world.player.y = 14 * TILE - world.player.h - 2;
+		world.player.vy = 1;
+		const ground = 14 * TILE - world.player.h;
+		let top = ground;
+		const events = [];
+		for (let i = 0; i < 80; i++) {
+			events.push(...step(world, IDLE));
+			top = Math.min(top, world.player.y);
+		}
+		expect(events).toContainEqual({ type: "spring" });
+		expect(ground - top).toBeGreaterThan(5 * TILE);
+	});
+
+	it("a moving platform travels its track and carries a rider", () => {
+		const world = createWorld(COURSE);
+		const pl = world.platforms.find((p) => p.kind === "mover");
+		if (!pl) throw new Error("no mover");
+		const xs = new Set<number>();
+		const p = world.player;
+		p.x = pl.x + 10;
+		p.y = pl.y - p.h - 1;
+		p.vy = 1;
+		const start = p.x;
+		for (let i = 0; i < 20; i++) {
+			step(world, IDLE);
+			xs.add(pl.x);
+		}
+		expect(xs.size).toBeGreaterThan(5);
+		expect(p.onGround).toBe(true);
+		expect(p.y + p.h).toBe(pl.y);
+		expect(p.x).not.toBe(start);
+		expect(pl.x).toBeGreaterThanOrEqual(pl.minX);
+		expect(pl.x).toBeLessThanOrEqual(pl.maxX);
+	});
+
+	it("a trapdoor holds a walker but gives way under one who stands still, then shuts", () => {
+		const world = createWorld(COURSE);
+		const traps = world.platforms.filter((p) => p.kind === "trap");
+		expect(traps).toHaveLength(2);
+		const trap = traps[0];
+		if (!trap) throw new Error("no trap");
+		const p = world.player;
+		p.x = trap.x + 2;
+		p.y = trap.y - p.h;
+		for (let i = 0; i < 10; i++) step(world, IDLE);
+		expect(p.onGround).toBe(true);
+		for (let i = 0; i < 30; i++) step(world, IDLE);
+		expect(trap.openLeft).toBeGreaterThan(0);
+		expect(p.y + p.h).toBeGreaterThan(trap.y + 8);
+		for (let i = 0; i < 150; i++) step(world, IDLE);
+		expect(trap.openLeft).toBe(0);
+	});
+});

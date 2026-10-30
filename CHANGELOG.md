@@ -1,3 +1,10 @@
+## [1.24.1](https://github.com/PiotrSobiecki/srubek/compare/v1.24.0...v1.24.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* pełny ekran i pad na telefonie ([644cfc7](https://github.com/PiotrSobiecki/srubek/commit/644cfc71499b092e866d0d464c71f9204d6b201f))
+
 # [1.24.0](https://github.com/PiotrSobiecki/srubek/compare/v1.23.0...v1.24.0) (2026-10-30)
 
 

@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/PiotrSobiecki/srubek/compare/v1.10.1...v1.11.0) (2026-10-30)
+
+
+### Features
+
+* boss prasa-olbrzym na arenie i czcionka Bangers ([67c06df](https://github.com/PiotrSobiecki/srubek/commit/67c06dfc3c36b63a396dae8d879c00b31401b3e6))
+
 ## [1.10.1](https://github.com/PiotrSobiecki/srubek/compare/v1.10.0...v1.10.1) (2026-10-30)
 
 

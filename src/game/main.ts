@@ -11,7 +11,7 @@ import {
 } from "@/game/boss";
 import { carriedScrap, createWorld, type Input, step, type World } from "@/game/engine";
 import { buildArena, buildLevel, type Level } from "@/game/level";
-import { createRenderer } from "@/game/render";
+import { type BoardRow, createRenderer } from "@/game/render";
 import { applyEvents, createState, type GameState } from "@/game/state";
 
 const STEP_MS = 1000 / 60;
@@ -40,7 +40,13 @@ export interface Hooks {
 	onRestart?(): void;
 }
 
-export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): void {
+export interface Game {
+	/** The page hands in the leaderboard; the end screen draws it. */
+	setBoard(rows: readonly BoardRow[]): void;
+}
+
+export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
+	let board: readonly BoardRow[] = [];
 	const input: Input = {
 		left: false,
 		right: false,
@@ -141,8 +147,13 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): void {
 			tick();
 			acc -= STEP_MS;
 		}
-		render(world, state);
+		render(world, state, board);
 		requestAnimationFrame(frame);
 	};
 	requestAnimationFrame(frame);
+	return {
+		setBoard(rows) {
+			board = rows;
+		},
+	};
 }

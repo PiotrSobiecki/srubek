@@ -7,28 +7,18 @@ import Layout from "@/layouts/Layout.astro";
 		<h1 class="title text-5xl tracking-wider">ŚRUBEK</h1>
 		<canvas id="game" width="960" height="512" class="w-full max-w-[960px] rounded-lg bg-neutral-900 shadow-2xl" aria-label="Gra Śrubek"></canvas>
 		<p class="hint max-w-[960px] text-center text-base tracking-wide text-amber-200/80">strzałki / WASD: jazda · spacja: skok (przytrzymaj, by skoczyć wyżej; w locie raz jeszcze) · C: magnes zbiera złom (do 10 szt.) · X: rzut złomem · Z: mega kula (za 10 śrub) · M: dźwięk</p>
-
-		<section class="w-full max-w-[960px]">
-			<h2 class="hint text-2xl tracking-wide text-amber-200">Najlepsze wyniki</h2>
-			<ol id="score-list" class="hint mt-2 space-y-1 text-lg tracking-wide text-amber-50/90"></ol>
-		</section>
 	</main>
 
-	<div id="score-modal" hidden class="fixed inset-0 z-10 flex items-center justify-center bg-black/70 p-4">
-		<div class="flex w-full max-w-xl flex-col gap-3 rounded-xl border border-amber-300/40 bg-neutral-950/95 p-5 shadow-2xl">
-			<h2 class="title text-4xl tracking-wider">KONIEC GRY</h2>
-			<p id="score-note" class="hint text-xl tracking-wide text-amber-100"></p>
-			<form id="score-form" class="flex flex-col gap-2">
-				<div class="flex gap-2">
-					<input id="score-nick" name="nick" required autocomplete="off" placeholder="ksywka" class="min-w-0 flex-1 rounded border border-amber-300/40 bg-neutral-900 px-3 py-1 text-amber-50 outline-none focus:border-amber-300" />
-					<button type="submit" class="hint rounded bg-amber-400 px-4 py-1 text-lg tracking-wide text-neutral-950 hover:bg-amber-300">Zapisz wynik</button>
-				</div>
-				<p class="text-xs text-neutral-400">Tablica jest publiczna: każdy, kto zna adres, zobaczy ksywkę.</p>
-			</form>
-			<p id="score-after" hidden class="hint text-xl tracking-wide text-emerald-300">Zapisane! Enter: jeszcze raz</p>
-			<h3 class="hint text-2xl tracking-wide text-amber-200">Najlepsze wyniki</h3>
-			<ol id="modal-list" class="hint max-h-[50vh] space-y-0.5 overflow-y-auto text-lg leading-tight tracking-wide text-amber-50/90"></ol>
-		</div>
+	<div id="score-modal" hidden class="fixed inset-0 z-10 flex items-center justify-center bg-black/60 p-4">
+		<form id="score-form" class="flex w-full max-w-md flex-col gap-3 rounded-xl border border-amber-300/40 bg-neutral-950/95 p-5 shadow-2xl">
+			<h2 class="title text-3xl tracking-wider">ZAPISZ WYNIK</h2>
+			<p id="score-note" class="hint text-lg tracking-wide text-amber-100"></p>
+			<div class="flex gap-2">
+				<input id="score-nick" name="nick" required autocomplete="off" placeholder="ksywka" class="min-w-0 flex-1 rounded border border-amber-300/40 bg-neutral-900 px-3 py-1 text-amber-50 outline-none focus:border-amber-300" />
+				<button type="submit" class="hint rounded bg-amber-400 px-4 py-1 text-lg tracking-wide text-neutral-950 hover:bg-amber-300">Zapisz</button>
+			</div>
+			<p class="text-xs text-neutral-400">Tablica jest publiczna: każdy, kto zna adres, zobaczy ksywkę.</p>
+		</form>
 	</div>
 </Layout>
 
@@ -57,33 +47,27 @@ import Layout from "@/layouts/Layout.astro";
 
 <script>
 	import { mountBoard } from "@/board";
-	import { start } from "@/game/main";
+	import { type Game, start } from "@/game/main";
 
 	const canvas = document.getElementById("game");
 	const modal = document.getElementById("score-modal");
-	const modalList = document.getElementById("modal-list");
 	const form = document.getElementById("score-form");
 	const nick = document.getElementById("score-nick");
 	const note = document.getElementById("score-note");
-	const after = document.getElementById("score-after");
-	const list = document.getElementById("score-list");
 
 	if (
 		modal instanceof HTMLElement &&
-		modalList instanceof HTMLOListElement &&
 		form instanceof HTMLFormElement &&
 		nick instanceof HTMLInputElement &&
 		note instanceof HTMLElement &&
-		after instanceof HTMLElement &&
-		list instanceof HTMLOListElement
+		canvas instanceof HTMLCanvasElement
 	) {
-		const board = mountBoard({ modal, modalList, form, nick, note, after, list });
-		void board.refresh();
+		let game: Game | undefined;
+		const board = mountBoard({ modal, form, nick, note }, (rows) => game?.setBoard(rows));
 		// The canvas draws its own text, so the font must be in before the first frame.
 		document.fonts.load("20px Bangers").finally(() => {
-			if (canvas instanceof HTMLCanvasElement) {
-				start(canvas, { onEnd: (state) => board.offer(state), onRestart: () => board.hide() });
-			}
+			game = start(canvas, { onEnd: (state) => board.offer(state), onRestart: () => board.hide() });
+			void board.refresh();
 		});
 	}
 </script>

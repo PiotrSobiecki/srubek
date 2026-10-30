@@ -1240,12 +1240,37 @@ function drawHud(ctx: Ctx, state: GameState, frame: number): void {
 	}
 }
 
-function drawOverlay(ctx: Ctx, state: GameState): void {
-	ctx.fillStyle = "rgba(5,4,12,0.62)";
+/** A row of the leaderboard as the page hands it in. */
+export interface BoardRow {
+	nick: string;
+	points: number;
+	level: number;
+}
+
+function drawOverlay(ctx: Ctx, state: GameState, board: readonly BoardRow[]): void {
+	ctx.fillStyle = "rgba(5,4,12,0.72)";
 	ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-	fancyText(ctx, "KONIEC GRY", VIEW_W / 2, VIEW_H / 2 - 24, 40, "center");
-	fancyText(ctx, `wynik ${totalPoints(state)}`, VIEW_W / 2, VIEW_H / 2 + 8, 18, "center");
-	fancyText(ctx, "Enter: jeszcze raz", VIEW_W / 2, VIEW_H / 2 + 30, 14, "center");
+	fancyText(ctx, "KONIEC GRY", VIEW_W / 2, 30, 34, "center");
+	fancyText(
+		ctx,
+		`wynik ${totalPoints(state)} · poziom ${state.level}`,
+		VIEW_W / 2,
+		58,
+		16,
+		"center",
+	);
+	fancyText(ctx, "NAJLEPSZE WYNIKI", VIEW_W / 2, 84, 14, "center");
+	const top = board.slice(0, 10);
+	if (top.length === 0)
+		fancyText(ctx, "jeszcze pusto, będziesz pierwszy?", VIEW_W / 2, 104, 11, "center");
+	top.forEach((row, i) => {
+		const y = 104 + i * 13;
+		fancyText(ctx, `${i + 1}.`, VIEW_W / 2 - 120, y, 11);
+		fancyText(ctx, row.nick, VIEW_W / 2 - 96, y, 11);
+		fancyText(ctx, `${row.points} pkt`, VIEW_W / 2 + 40, y, 11);
+		fancyText(ctx, `poz. ${row.level}`, VIEW_W / 2 + 96, y, 11);
+	});
+	fancyText(ctx, "Enter: jeszcze raz", VIEW_W / 2, VIEW_H - 14, 14, "center");
 }
 
 // ── renderer ─────────────────────────────────────────────────────────
@@ -1547,7 +1572,7 @@ function drawActors(ctx: Ctx, world: World, camera: number): void {
 	drawEffects(ctx, world, camera);
 }
 
-export type Renderer = (world: World, state: GameState) => void;
+export type Renderer = (world: World, state: GameState, board: readonly BoardRow[]) => void;
 
 export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 	canvas.width = VIEW_W * SCALE;
@@ -1564,7 +1589,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		return b;
 	};
 	const textures = loadTextures();
-	return (world, state) => {
+	return (world, state, board) => {
 		const camera = Math.round(world.camera);
 		const quake = world.effects.find((e) => e.kind === "quake");
 		const shake = quake ? Math.max(0, 12 - (world.frame - quake.frame)) : 0;
@@ -1589,6 +1614,6 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 		drawHud(ctx, state, world.frame);
 		if (world.boss?.alive) drawBossBar(ctx, world.boss);
-		if (state.status === "over") drawOverlay(ctx, state);
+		if (state.status === "over") drawOverlay(ctx, state, board);
 	};
 }

@@ -1,3 +1,10 @@
+## [1.19.2](https://github.com/PiotrSobiecki/srubek/compare/v1.19.1...v1.19.2) (2026-10-30)
+
+
+### Bug Fixes
+
+* każdy boss schodzi w zasięg, plansze startują z lewej i są różnorodne ([62addf9](https://github.com/PiotrSobiecki/srubek/commit/62addf9a157a963bbb858875a166f5e40996f11e))
+
 ## [1.19.1](https://github.com/PiotrSobiecki/srubek/compare/v1.19.0...v1.19.1) (2026-10-30)
 
 

@@ -1,3 +1,10 @@
+# [1.27.0](https://github.com/PiotrSobiecki/srubek/compare/v1.26.0...v1.27.0) (2026-10-30)
+
+
+### Features
+
+* cios przedmiotem z ręki pod Shift i V ([fbaaf41](https://github.com/PiotrSobiecki/srubek/commit/fbaaf410c6bc30277872121adda5a0486a3ab0b2))
+
 # [1.26.0](https://github.com/PiotrSobiecki/srubek/compare/v1.25.1...v1.26.0) (2026-10-30)
 
 

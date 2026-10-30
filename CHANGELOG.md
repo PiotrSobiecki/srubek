@@ -1,3 +1,11 @@
+# [1.16.0](https://github.com/PiotrSobiecki/srubek/compare/v1.15.1...v1.16.0) (2026-10-30)
+
+
+### Features
+
+* czterej bossowie narysowani od nowa, każdy w innej palecie ([e33d59e](https://github.com/PiotrSobiecki/srubek/commit/e33d59e12559939e3f331ae0ab04632c24ef2c7f))
+* tablica na ekranie końca gry, okno tylko na ksywkę ([4bf9da2](https://github.com/PiotrSobiecki/srubek/commit/4bf9da24dba15182f91b9608fc15c4e787279ca0))
+
 ## [1.15.1](https://github.com/PiotrSobiecki/srubek/compare/v1.15.0...v1.15.1) (2026-10-30)
 
 

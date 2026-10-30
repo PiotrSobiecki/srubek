@@ -1,3 +1,10 @@
+## [1.19.1](https://github.com/PiotrSobiecki/srubek/compare/v1.19.0...v1.19.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* strzelający boss w powietrzu zjeżdża w zasięg skoku po salwie ([6211537](https://github.com/PiotrSobiecki/srubek/commit/6211537624d3116505f4d7ea8c0cb7b0fb1fc8a1))
+
 # [1.19.0](https://github.com/PiotrSobiecki/srubek/compare/v1.18.0...v1.19.0) (2026-10-30)
 
 

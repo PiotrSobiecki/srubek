@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/PiotrSobiecki/srubek/compare/v1.8.0...v1.9.0) (2026-10-30)
+
+
+### Features
+
+* płomienie spod kółek przy skoku i muzyka w tle ([68fa73a](https://github.com/PiotrSobiecki/srubek/commit/68fa73ae90ddf71cfb3f9b86f231d8d3db6ab118))
+
 # [1.8.0](https://github.com/PiotrSobiecki/srubek/compare/v1.7.0...v1.8.0) (2026-10-30)
 
 

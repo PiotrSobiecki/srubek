@@ -23,7 +23,7 @@ interface DroneSpec extends Vec {
 	x1: number;
 }
 
-export type SegmentName = "nuts" | "drones" | "gap" | "dog" | "presses";
+export type SegmentName = "nuts" | "drones" | "gap" | "dog" | "towers" | "bridge" | "presses";
 
 export type PickupKind = "nut" | "bolt" | "gear" | "cell" | "life";
 
@@ -122,6 +122,42 @@ const SEGMENTS: Record<SegmentName, string[]> = {
 		"..........s...s.........w.................#.....w.........#.",
 		"############################################################",
 		"############################################################",
+	],
+	towers: [
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"..........................................o.................",
+		".....................=====..............====................",
+		"...............o.........................................b..",
+		"............=====...............b.b....................====.",
+		"..................................====......................",
+		".......o.o.................................z................",
+		".....=====..............-----v-----......=====..............",
+		"............................................................",
+		"...........---v---.............s............w...............",
+		"############################################################",
+		"############################################################",
+	],
+	bridge: [
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"..............o...o...o...o...o.............................",
+		"............===========================.....................",
+		"............................................................",
+		".........b..........................................b.......",
+		"...........................................s....w...........",
+		"########........######....###########.....##################",
+		"########........######....###########.....##################",
 	],
 	presses: [
 		"............................................................",
@@ -248,6 +284,14 @@ export function difficulty(n: number): number {
 /** Extra hazards a segment gains as difficulty rises, in the order they are added. */
 const HARDER: Record<SegmentName, { x: number; y: number; c: string }[]> = {
 	nuts: [],
+	towers: [
+		{ x: 50, y: 13, c: "v" },
+		{ x: 30, y: 9, c: "v" },
+	],
+	bridge: [
+		{ x: 20, y: 9, c: "v" },
+		{ x: 56, y: 13, c: "w" },
+	],
 	drones: [
 		{ x: 30, y: 12, c: "v" },
 		{ x: 50, y: 11, c: "v" },
@@ -293,10 +337,15 @@ function harden(name: SegmentName, d: number): string[] {
 	return rows;
 }
 
-/** Levels past the first shuffle the four teaching segments; the presses and the gate stay last. */
-function segmentOrder(n: number): SegmentName[] {
-	const pool: SegmentName[] = ["nuts", "drones", "gap", "dog"];
-	if (n === 1) return [...pool, "presses"];
+/**
+ * Levels past the first draw four of the six open segments in a shuffled
+ * order, each possibly mirrored; the presses and the gate stay last.
+ */
+function segmentOrder(n: number): { names: SegmentName[]; mirrored: boolean[] } {
+	const teach: SegmentName[] = ["nuts", "drones", "gap", "dog"];
+	if (n === 1)
+		return { names: [...teach, "presses"], mirrored: teach.map(() => false).concat(false) };
+	const pool: SegmentName[] = [...teach, "towers", "bridge"];
 	const next = rng(n * 7919);
 	for (let i = pool.length - 1; i > 0; i--) {
 		const j = Math.floor(next() * (i + 1));
@@ -307,7 +356,13 @@ function segmentOrder(n: number): SegmentName[] {
 			pool[j] = a;
 		}
 	}
-	return [...pool, "presses"];
+	const names = [...pool.slice(0, 4), "presses" as const];
+	const mirrored = names.map((name) => name !== "presses" && next() < 0.5);
+	return { names, mirrored };
+}
+
+function mirror(rows: string[]): string[] {
+	return rows.map((row) => [...row].reverse().join(""));
 }
 
 /** Roughly one level in seven carries an extra life, decided by the level number alone. */
@@ -317,14 +372,16 @@ export function hasExtraLife(n: number): boolean {
 
 export function buildLevel(n: number): Level {
 	const d = difficulty(n);
-	const names = segmentOrder(n);
-	const parts = names.map((name) => harden(name, d));
+	const { names, mirrored } = segmentOrder(n);
+	const parts = names.map((name, i) => (mirrored[i] ? mirror(harden(name, d)) : harden(name, d)));
 	if (hasExtraLife(n)) {
-		const nuts = parts[names.indexOf("nuts")];
-		if (nuts) setChar(nuts, 20, 12, "l");
+		const first = parts[0];
+		if (first) setChar(first, 20, 12, "l");
 	}
 	const rows = Array.from({ length: ROWS }, (_, y) => parts.map((p) => p[y] ?? "").join(""));
 	const level = levelFromRows(rows, names);
+	// Every run starts at the left edge, whatever segment landed there.
+	if (n > 1) level.spawn = { x: 1, y: 12 };
 	level.tempo = 1 - 0.45 * d;
 	level.theme = n % 2 === 0 ? "stocznia" : "zlomowisko";
 	return level;

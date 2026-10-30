@@ -79,17 +79,42 @@ describe("generator", () => {
 		}
 	});
 
-	it("gets harder monotonically up to level 100 and stays flat after", () => {
-		let last = -1;
+	it("gets harder up to level 100 and stays flat after", () => {
+		// Segments vary per level, so compare windows rather than neighbours.
+		const window = (from: number) => {
+			let sum = 0;
+			for (let n = from; n < from + 10; n++) sum += measure(buildLevel(n));
+			return sum;
+		};
+		expect(window(1)).toBeLessThan(window(45));
+		expect(window(45)).toBeLessThan(window(90));
+		let lastTempo = 2;
 		for (let n = 1; n <= 100; n++) {
-			const m = measure(buildLevel(n));
-			expect(m).toBeGreaterThanOrEqual(last);
-			last = m;
+			const t = buildLevel(n).tempo;
+			expect(t).toBeLessThanOrEqual(lastTempo);
+			lastTempo = t;
 		}
-		expect(measure(buildLevel(100))).toBeGreaterThan(measure(buildLevel(1)));
-		expect(measure(buildLevel(140))).toBe(measure(buildLevel(100)));
+		expect(buildLevel(140).tempo).toBe(buildLevel(100).tempo);
 		expect(difficulty(50)).toBeLessThan(0.3);
 		expect(difficulty(100)).toBe(1);
+	});
+
+	it("varies the segment set and mirrors some, and always starts at the left edge on solid-ish ground", () => {
+		const sets = new Set<string>();
+		for (let n = 2; n <= 40; n++) {
+			const level = buildLevel(n);
+			sets.add(level.segments.join(","));
+			expect(level.spawn.x).toBe(1);
+			expect(isSolid(level, 1, 12)).toBe(false);
+			// Something solid within four rows below the spawn.
+			expect([13, 14, 15].some((y) => isSolid(level, 1, y))).toBe(true);
+		}
+		expect(sets.size).toBeGreaterThan(8);
+		const usesNew = [...Array(40).keys()].some((i) => {
+			const s = buildLevel(i + 2).segments;
+			return s.includes("towers") || s.includes("bridge");
+		});
+		expect(usesNew).toBe(true);
 	});
 
 	it("drops an extra life in roughly one level in seven", () => {

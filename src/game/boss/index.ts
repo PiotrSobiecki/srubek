@@ -459,7 +459,7 @@ function pull(boss: Boss, world: World, events: GameEvent[]): void {
 		events.push({ type: "throw" });
 	}
 	if (boss.timer-- > 0) return;
-	boss.phase = "cool";
+	boss.phase = grounded(boss.spec) ? "cool" : "dip";
 	boss.timer = boss.spec.openFrames;
 }
 

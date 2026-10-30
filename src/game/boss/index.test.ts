@@ -279,7 +279,7 @@ describe("wieża / laser", () => {
 });
 
 describe("magnes / przyciag", () => {
-	it("drags Śrubek toward itself and drops scrap, then cools", () => {
+	it("drags Śrubek toward itself and drops scrap, then sinks into reach", () => {
 		const [world, boss] = arena("magnes", "przyciag", "rdzen");
 		const p = world.player;
 		p.x = boss.x - 120;
@@ -291,7 +291,7 @@ describe("magnes / przyciag", () => {
 		}
 		expect(p.x).toBeGreaterThan(startX);
 		expect(dropped).toBeGreaterThan(0);
-		expect(boss.phase).toBe("cool");
+		expect(boss.phase).toBe("dip");
 	});
 });
 
@@ -321,5 +321,29 @@ describe("wąż / pełzanie", () => {
 		expect(lifted).toBe(true);
 		expect(boss.phase).toBe("stun");
 		expect(boss.y).toBe(boss.floorY);
+	});
+});
+
+describe("every boss can be beaten", () => {
+	it.each(
+		bossPool(),
+	)("%s / %s / %s bares its weak spot within double-jump reach", (body, attack, weak) => {
+		const [world, boss] = arena(body, attack, weak);
+		// Śrubek stands still at the far left; the boss must still come within reach.
+		world.player.x = 40;
+		world.player.y = boss.floorY + boss.h - world.player.h;
+		let opened = false;
+		for (let i = 0; i < 1500; i++) {
+			step(world, IDLE);
+			// Keep him alive and parked, whatever the boss throws.
+			world.player.hurtLeft = 0;
+			world.player.x = 40;
+			world.player.vx = 0;
+			if (coreOpen(boss) && boss.y >= 110) {
+				opened = true;
+				break;
+			}
+		}
+		expect(opened).toBe(true);
 	});
 });

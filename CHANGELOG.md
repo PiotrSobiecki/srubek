@@ -1,3 +1,10 @@
+## [1.14.1](https://github.com/PiotrSobiecki/srubek/compare/v1.14.0...v1.14.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* pasek bossa pod HUD, pies-alfa z wyższym korpusem i większą głową ([32b2383](https://github.com/PiotrSobiecki/srubek/commit/32b23836f863706fd499f7fb4f36cc9fbc8eac52))
+
 # [1.14.0](https://github.com/PiotrSobiecki/srubek/compare/v1.13.0...v1.14.0) (2026-10-30)
 
 

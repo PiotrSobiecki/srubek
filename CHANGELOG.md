@@ -1,3 +1,10 @@
+# [1.26.0](https://github.com/PiotrSobiecki/srubek/compare/v1.25.1...v1.26.0) (2026-10-30)
+
+
+### Features
+
+* miecz, czapka z daszkiem i skrzydełka w szafie ([4eef2b6](https://github.com/PiotrSobiecki/srubek/commit/4eef2b6fda535a6d6cfa556d0b417156d3d94586))
+
 ## [1.25.1](https://github.com/PiotrSobiecki/srubek/compare/v1.25.0...v1.25.1) (2026-10-30)
 
 

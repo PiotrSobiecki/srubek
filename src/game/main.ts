@@ -13,6 +13,7 @@ import { carriedScrap, createWorld, type Input, step, type World } from "@/game/
 import { buildArena, buildLevel, type Level } from "@/game/level";
 import { type BoardRow, createRenderer } from "@/game/render";
 import { applyEvents, createState, type GameState, nextLevel } from "@/game/state";
+import { DEFAULT_SKIN, type Skin } from "@/skin";
 
 const STEP_MS = 1000 / 60;
 
@@ -47,10 +48,13 @@ export interface Game {
 	press(key: keyof Input, down: boolean): void;
 	/** What Enter does: restart after a loss, move on after a boss. */
 	enter(): void;
+	/** Change Śrubek's look; takes effect on the next frame. */
+	setSkin(skin: Skin): void;
 }
 
 export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 	let board: readonly BoardRow[] = [];
+	let skin: Skin = DEFAULT_SKIN;
 	const input: Input = {
 		left: false,
 		right: false,
@@ -170,7 +174,7 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 			frames = 0;
 			fpsAt = now;
 		}
-		render(world, state, board, showFps ? fps : undefined);
+		render(world, state, board, skin, showFps ? fps : undefined);
 		requestAnimationFrame(frame);
 	};
 	requestAnimationFrame(frame);
@@ -181,6 +185,9 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 		press,
 		enter() {
 			onShortcut("Enter");
+		},
+		setSkin(next) {
+			skin = next;
 		},
 	};
 }

@@ -17,6 +17,7 @@ import {
 } from "@/game/engine";
 import { type Level, type PickupKind, type Theme, TILE } from "@/game/level";
 import { BATTERY_MAX, BOLTS_PER_MEGA, type GameState, totalPoints } from "@/game/state";
+import { type Skin, tint } from "@/skin";
 import { BOSS_NAMES, drawBoss } from "./bosses";
 import { type Ctx, glow, noise, outline, rim, rounded, shade, sphere } from "./draw";
 
@@ -860,14 +861,133 @@ function drawWheels(ctx: Ctx, p: Player): void {
 	}
 }
 
-function drawHead(ctx: Ctx, frame: number, legPhase: number): void {
+function drawHat(ctx: Ctx, skin: Skin, frame: number, legPhase: number): void {
+	const accent = skin.accent;
+	switch (skin.hat) {
+		case "antena":
+			ctx.strokeStyle = "#3a3f49";
+			ctx.lineWidth = 1.2;
+			ctx.beginPath();
+			ctx.moveTo(0, -23.5);
+			ctx.quadraticCurveTo(1 + legPhase, -27, 0.5, -29);
+			ctx.stroke();
+			glow(ctx, 0.5, -29.5, 4, "rgba(255,190,80,A)", 0.5);
+			sphere(ctx, 0.5, -29.5, 1.7, tint(accent, 0.6), accent);
+			return;
+		case "kask":
+			ctx.beginPath();
+			ctx.ellipse(0, -21, 7.5, 5, 0, Math.PI, 0);
+			ctx.closePath();
+			ctx.fillStyle = shade(ctx, -26, 5, tint(accent, 0.3), tint(accent, -0.3));
+			ctx.fill();
+			outline(ctx, 0.8);
+			ctx.fillStyle = tint(accent, -0.4);
+			ctx.fillRect(-8.5, -22, 17, 1.6);
+			glow(ctx, 0, -24, 3, "rgba(255,240,200,A)", 0.6);
+			sphere(ctx, 0, -24, 1.2, "#fff8dc", "#c9a04d");
+			return;
+		case "czapka":
+			ctx.beginPath();
+			ctx.moveTo(-6.5, -21.5);
+			ctx.quadraticCurveTo(0, -31, 6.5, -21.5);
+			ctx.closePath();
+			ctx.fillStyle = shade(ctx, -31, 10, tint(accent, 0.25), tint(accent, -0.25));
+			ctx.fill();
+			outline(ctx, 0.8);
+			ctx.fillStyle = "#f4f7fa";
+			ctx.fillRect(-7, -22.5, 14, 2.2);
+			sphere(ctx, 0, -31 + Math.sin(frame / 8) * 0.5, 2, "#ffffff", "#c9d2da");
+			return;
+		case "korona":
+			ctx.beginPath();
+			ctx.moveTo(-6, -22);
+			for (let i = 0; i < 4; i++) {
+				ctx.lineTo(-6 + i * 4, -28);
+				ctx.lineTo(-4 + i * 4, -24);
+			}
+			ctx.lineTo(6, -28);
+			ctx.lineTo(6, -22);
+			ctx.closePath();
+			ctx.fillStyle = shade(ctx, -28, 6, "#ffe58a", "#b8860b");
+			ctx.fill();
+			outline(ctx, 0.8);
+			for (const jx of [-4, 0, 4]) sphere(ctx, jx, -24.5, 0.9, tint(accent, 0.5), accent);
+			return;
+		case "cylinder":
+			ctx.fillStyle = shade(ctx, -34, 12, tint(accent, -0.5), tint(accent, -0.8));
+			ctx.fillRect(-4.5, -33, 9, 11);
+			ctx.fillRect(-7, -23, 14, 1.8);
+			ctx.beginPath();
+			ctx.rect(-4.5, -33, 9, 11);
+			outline(ctx, 0.8);
+			ctx.fillStyle = accent;
+			ctx.fillRect(-4.5, -24.5, 9, 1.8);
+			return;
+		default:
+			return;
+	}
+}
+
+function drawAccessory(ctx: Ctx, skin: Skin, frame: number, behind: boolean): void {
+	const accent = skin.accent;
+	if (behind) {
+		if (skin.accessory === "plecak") {
+			rounded(ctx, -9, -13, 4.5, 8, 1.5);
+			ctx.fillStyle = shade(ctx, -13, 8, tint(accent, 0.2), tint(accent, -0.4));
+			ctx.fill();
+			outline(ctx, 0.6);
+			ctx.fillStyle = "#3a3f49";
+			ctx.fillRect(-8, -14.5, 2.5, 2);
+		}
+		if (skin.accessory === "pelerynka") {
+			const sway = Math.sin(frame / 6) * 2;
+			ctx.beginPath();
+			ctx.moveTo(-4, -14);
+			ctx.quadraticCurveTo(-12 + sway, -8, -10 + sway, 0);
+			ctx.lineTo(-3, -3);
+			ctx.closePath();
+			ctx.fillStyle = shade(ctx, -14, 14, tint(accent, 0.1), tint(accent, -0.4));
+			ctx.fill();
+			outline(ctx, 0.6);
+		}
+		return;
+	}
+	if (skin.accessory === "szalik") {
+		ctx.fillStyle = accent;
+		rounded(ctx, -6, -14.5, 12, 2.6, 1.2);
+		ctx.fill();
+		ctx.beginPath();
+		ctx.moveTo(-5, -13);
+		ctx.lineTo(-7 + Math.sin(frame / 7), -6);
+		ctx.lineTo(-3.5, -8);
+		ctx.closePath();
+		ctx.fill();
+	}
+	if (skin.accessory === "okulary") {
+		ctx.strokeStyle = "#1b1a22";
+		ctx.lineWidth = 0.8;
+		ctx.fillStyle = "rgba(40,20,60,0.75)";
+		for (const ex of [-0.8, 3.2]) {
+			ctx.beginPath();
+			ctx.arc(ex, -18, 2.3, 0, Math.PI * 2);
+			ctx.fill();
+			ctx.stroke();
+		}
+		ctx.beginPath();
+		ctx.moveTo(1.5, -18);
+		ctx.lineTo(0.9, -18);
+		ctx.stroke();
+	}
+}
+
+function drawHead(ctx: Ctx, skin: Skin, frame: number, legPhase: number): void {
 	// Rounded helmet with a glossy top.
 	ctx.beginPath();
 	ctx.ellipse(0, -18.5, 6.5, 5.5, 0, 0, Math.PI * 2);
 	const g = ctx.createRadialGradient(-2.5, -21, 1, 0, -18.5, 7);
-	g.addColorStop(0, "#f4f7fa");
-	g.addColorStop(0.6, "#b7c2cc");
-	g.addColorStop(1, "#5f6b77");
+	g.addColorStop(0, tint(skin.body, 0.75));
+	g.addColorStop(0.6, tint(skin.body, 0.1));
+	g.addColorStop(1, tint(skin.body, -0.45));
 	ctx.fillStyle = g;
 	ctx.fill();
 	outline(ctx);
@@ -877,19 +997,15 @@ function drawHead(ctx: Ctx, frame: number, legPhase: number): void {
 	ctx.fillStyle = "#0f1820";
 	ctx.fill();
 	if (frame % 180 <= 174) {
-		sphere(ctx, -0.8, -18, 1.5, "#d8fffb", "#2fd3c6");
-		sphere(ctx, 3.2, -18, 1.7, "#d8fffb", "#2fd3c6");
-		glow(ctx, 1.4, -18, 6, "rgba(79,240,224,A)", 0.3);
+		sphere(ctx, -0.8, -18, 1.5, tint(skin.eyes, 0.7), skin.eyes);
+		sphere(ctx, 3.2, -18, 1.7, tint(skin.eyes, 0.7), skin.eyes);
+		ctx.save();
+		ctx.globalAlpha = 0.3;
+		sphere(ctx, 1.4, -18, 6, skin.eyes, "rgba(0,0,0,0)");
+		ctx.restore();
 	}
-	// Antenna with a bobbing bulb.
-	ctx.strokeStyle = "#3a3f49";
-	ctx.lineWidth = 1.2;
-	ctx.beginPath();
-	ctx.moveTo(0, -23.5);
-	ctx.quadraticCurveTo(1 + legPhase, -27, 0.5, -29);
-	ctx.stroke();
-	glow(ctx, 0.5, -29.5, 4, "rgba(255,190,80,A)", 0.5);
-	sphere(ctx, 0.5, -29.5, 1.7, "#ffe2a0", "#e07b1c");
+	drawAccessory(ctx, skin, frame, false);
+	drawHat(ctx, skin, frame, legPhase);
 }
 
 /** Jet flames under both wheels; `power` 1 for a plain jump, more for the thruster. */
@@ -915,7 +1031,7 @@ function drawFlame(ctx: Ctx, frame: number, power: number): void {
 }
 
 /** Śrubek, scaled up from his hitbox with the feet pinned to its floor. */
-function drawSrubek(ctx: Ctx, p: Player, frame: number, camera: number): void {
+function drawSrubek(ctx: Ctx, p: Player, skin: Skin, frame: number, camera: number): void {
 	if (p.hurtLeft > 0 && Math.floor(frame / 4) % 2 === 0) return;
 	const running = p.onGround && Math.abs(p.vx) > 0.3;
 	const bob = running ? Math.sin(frame / 2) * 0.4 : 0;
@@ -932,14 +1048,15 @@ function drawSrubek(ctx: Ctx, p: Player, frame: number, camera: number): void {
 	if (p.boostLeft > 0) drawFlame(ctx, frame, 1.6);
 	else if (!p.onGround && p.vy < 0) drawFlame(ctx, frame, 0.8);
 	drawWheels(ctx, p);
+	drawAccessory(ctx, skin, frame, true);
 
 	// Body: a rounded barrel with a glossy sweep, a rust dent and a chest light.
 	ctx.beginPath();
 	ctx.ellipse(0, -9.5, 6, 5.2, 0, 0, Math.PI * 2);
 	const body = ctx.createRadialGradient(-2.2, -12, 1, 0, -9.5, 7);
-	body.addColorStop(0, "#e6ecf1");
-	body.addColorStop(0.55, "#aab5bf");
-	body.addColorStop(1, "#5a6671");
+	body.addColorStop(0, tint(skin.body, 0.7));
+	body.addColorStop(0.55, skin.body);
+	body.addColorStop(1, tint(skin.body, -0.45));
 	ctx.fillStyle = body;
 	ctx.fill();
 	outline(ctx);
@@ -949,7 +1066,7 @@ function drawSrubek(ctx: Ctx, p: Player, frame: number, camera: number): void {
 	ctx.ellipse(-2.6, -8.2, 2, 1.3, 0.4, 0, Math.PI * 2);
 	ctx.fill();
 	glow(ctx, 2.6, -10, 4, "rgba(255,200,100,A)", 0.45);
-	sphere(ctx, 2.6, -10, 1.5, "#ffe2a0", "#d98a1c");
+	sphere(ctx, 2.6, -10, 1.5, tint(skin.accent, 0.6), skin.accent);
 
 	// Trailing arm with the magnet claw, so the body reads as facing forward.
 	rounded(ctx, -7.8, -12, 3.2, 6.5, 1.6);
@@ -958,7 +1075,7 @@ function drawSrubek(ctx: Ctx, p: Player, frame: number, camera: number): void {
 	outline(ctx, 0.6);
 	sphere(ctx, -6.2, -5.2, 2, "#ff9c84", "#c23b25");
 
-	drawHead(ctx, frame, legPhase);
+	drawHead(ctx, skin, frame, legPhase);
 	ctx.restore();
 }
 
@@ -1322,7 +1439,7 @@ function drawProjectiles(ctx: Ctx, world: World, camera: number): void {
 	drawPouch(ctx, world, camera);
 }
 
-function drawActors(ctx: Ctx, world: World, camera: number): void {
+function drawActors(ctx: Ctx, world: World, camera: number, skin: Skin): void {
 	if (world.boss) drawBoss(ctx, world.boss, world.frame, camera, world);
 	const frame = world.frame;
 	for (const c of world.level.chargers) drawCharger(ctx, c.x * TILE - camera, c.y * TILE, frame);
@@ -1332,7 +1449,7 @@ function drawActors(ctx: Ctx, world: World, camera: number): void {
 	drawProjectiles(ctx, world, camera);
 	for (const d of world.dogs) if (d.alive) drawDog(ctx, d.x - camera, d.y, d.dir, frame);
 	for (const d of world.drones) if (d.alive) drawDrone(ctx, d.x - camera, d.y, d.dir, frame);
-	drawSrubek(ctx, world.player, frame, camera);
+	drawSrubek(ctx, world.player, skin, frame, camera);
 	drawEffects(ctx, world, camera);
 }
 
@@ -1340,6 +1457,7 @@ export type Renderer = (
 	world: World,
 	state: GameState,
 	board: readonly BoardRow[],
+	skin: Skin,
 	fps?: number,
 ) => void;
 
@@ -1358,7 +1476,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		return b;
 	};
 	const textures = loadTextures();
-	return (world, state, board, fps) => {
+	return (world, state, board, skin, fps) => {
 		const camera = Math.round(world.camera);
 		const quake = world.effects.find((e) => e.kind === "quake");
 		const shake = quake ? Math.max(0, 12 - (world.frame - quake.frame)) : 0;
@@ -1367,7 +1485,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		ctx.setTransform(SCALE, 0, 0, SCALE, sx * SCALE, sy * SCALE);
 		drawBackground(ctx, backdropFor(world.level.theme), camera, world.frame);
 		drawTiles(ctx, textures, world.level, camera);
-		drawActors(ctx, world, camera);
+		drawActors(ctx, world, camera, skin);
 		// Vignette, so the edges fall off like a lit set.
 		const v = ctx.createRadialGradient(
 			VIEW_W / 2,

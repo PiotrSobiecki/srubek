@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/PiotrSobiecki/srubek/compare/v1.6.0...v1.7.0) (2026-10-30)
+
+
+### Features
+
+* kierunek postaci, cztery znajdźki, efekty zniszczenia i ładowania ([635919f](https://github.com/PiotrSobiecki/srubek/commit/635919fd79a6b877efbf93b1d7fc7c417443d57b))
+
 # [1.6.0](https://github.com/PiotrSobiecki/srubek/compare/v1.5.0...v1.6.0) (2026-10-30)
 
 

@@ -1,3 +1,10 @@
+## [1.27.2](https://github.com/PiotrSobiecki/srubek/compare/v1.27.1...v1.27.2) (2026-10-30)
+
+
+### Bug Fixes
+
+* **mobile:** sterowanie strefami ekranu i blokada przybliżania ([bce784c](https://github.com/PiotrSobiecki/srubek/commit/bce784c723d58c0469f27e143306d71acf382110))
+
 ## [1.27.1](https://github.com/PiotrSobiecki/srubek/compare/v1.27.0...v1.27.1) (2026-10-30)
 
 

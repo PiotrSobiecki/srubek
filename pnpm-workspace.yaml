@@ -3,3 +3,4 @@ allowBuilds:
   sharp: true
   simple-git-hooks: true
   workerd: true
+shellEmulator: true

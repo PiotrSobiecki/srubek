@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/PiotrSobiecki/srubek/compare/v1.5.0...v1.6.0) (2026-10-30)
+
+
+### Features
+
+* prasy, ładowarka i brama fabryki zamykają poziom 1 ([08ccb31](https://github.com/PiotrSobiecki/srubek/commit/08ccb31346495caef3070b5ea2fe4c994ecd96c5))
+
 # [1.5.0](https://github.com/PiotrSobiecki/srubek/compare/v1.4.0...v1.5.0) (2026-10-30)
 
 

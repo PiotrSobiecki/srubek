@@ -1369,13 +1369,13 @@ function drawDogAlpha(ctx: Ctx, boss: Boss, frame: number, x: number, y: number)
 		[8, stride],
 		[18, -stride],
 	] as const) {
-		rounded(ctx, lx - 2.5 + s * 0.4, -10, 5, 10, 2);
-		ctx.fillStyle = shade(ctx, -10, 10, "#4d5661", "#1e2227");
+		rounded(ctx, lx - 3 + s * 0.4, -12, 6, 12, 2.5);
+		ctx.fillStyle = shade(ctx, -12, 12, "#4d5661", "#1e2227");
 		ctx.fill();
 	}
 	ctx.beginPath();
-	ctx.ellipse(-2, -16, w / 2 - 4, 9, 0, 0, Math.PI * 2);
-	const body = ctx.createRadialGradient(-8, -22, 2, -2, -16, 26);
+	ctx.ellipse(-2, -19, w / 2 - 6, 12, 0, 0, Math.PI * 2);
+	const body = ctx.createRadialGradient(-8, -26, 2, -2, -19, 26);
 	body.addColorStop(0, "#c3ccd5");
 	body.addColorStop(0.6, "#6f7a86");
 	body.addColorStop(1, "#2f363d");
@@ -1387,21 +1387,25 @@ function drawDogAlpha(ctx: Ctx, boss: Boss, frame: number, x: number, y: number)
 	ctx.fillStyle = "#9a5a34";
 	for (let i = -3; i <= 2; i++) {
 		ctx.beginPath();
-		ctx.moveTo(i * 6 - 2, -24);
-		ctx.lineTo(i * 6 + 1, -31);
-		ctx.lineTo(i * 6 + 4, -24);
+		ctx.moveTo(i * 6 - 2, -29);
+		ctx.lineTo(i * 6 + 1, -37);
+		ctx.lineTo(i * 6 + 4, -29);
 		ctx.closePath();
 		ctx.fill();
 	}
 	// Head and jaws.
-	rounded(ctx, w / 2 - 12, -26, 16, 12, 4);
-	ctx.fillStyle = shade(ctx, -26, 12, "#aab3bc", "#3f4852");
+	rounded(ctx, w / 2 - 14, -31, 20, 15, 5);
+	ctx.fillStyle = shade(ctx, -31, 15, "#aab3bc", "#3f4852");
 	ctx.fill();
 	outline(ctx, 1);
 	ctx.fillStyle = "#1b1a22";
-	ctx.fillRect(w / 2 - 8, -18, 12, 2);
-	glow(ctx, w / 2 - 2, -22, 5, "rgba(255,70,50,A)", 0.6);
-	sphere(ctx, w / 2 - 2, -22, 2.2, "#ffb0a0", "#c8231a");
+	ctx.fillRect(w / 2 - 10, -21, 15, 2.5);
+	for (let i = 0; i < 4; i++) {
+		ctx.fillStyle = "#e6ecf1";
+		ctx.fillRect(w / 2 - 9 + i * 4, -21, 2, 2);
+	}
+	glow(ctx, w / 2 - 3, -26, 6, "rgba(255,70,50,A)", 0.6);
+	sphere(ctx, w / 2 - 3, -26, 2.8, "#ffb0a0", "#c8231a");
 	ctx.restore();
 	drawWeakSpot(ctx, boss, x + boss.w / 2 - boss.dir * 4, y + 2, frame);
 }
@@ -1499,15 +1503,15 @@ function drawPressBoss(ctx: Ctx, boss: Boss, frame: number, camera: number): voi
 function drawBossBar(ctx: Ctx, boss: Boss): void {
 	const w = 120;
 	const x = (VIEW_W - w) / 2;
-	rounded(ctx, x - 2, 6, w + 4, 10, 4);
+	rounded(ctx, x - 2, 27, w + 4, 10, 4);
 	ctx.fillStyle = "rgba(10,8,20,0.55)";
 	ctx.fill();
 	for (let i = 0; i < boss.spec.hp; i++) {
-		rounded(ctx, x + (i * w) / boss.spec.hp + 1, 8, w / boss.spec.hp - 2, 6, 2);
+		rounded(ctx, x + (i * w) / boss.spec.hp + 1, 29, w / boss.spec.hp - 2, 6, 2);
 		ctx.fillStyle = i < boss.hp ? "#ff5a5a" : "#2b2f36";
 		ctx.fill();
 	}
-	fancyText(ctx, BOSS_NAMES[boss.spec.body], VIEW_W / 2, 23, 10, "center");
+	fancyText(ctx, BOSS_NAMES[boss.spec.body], VIEW_W / 2, 44, 10, "center");
 }
 
 function drawPickups(ctx: Ctx, world: World, camera: number): void {

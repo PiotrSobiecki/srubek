@@ -19,12 +19,15 @@ const KEYS: Record<string, keyof Input> = {
 	KeyE: "magnet",
 	KeyX: "magnet",
 	ShiftLeft: "magnet",
-	ArrowDown: "magnet",
-	KeyS: "magnet",
+	KeyF: "throw",
+	KeyQ: "throw",
+	ControlLeft: "throw",
+	ArrowDown: "throw",
+	KeyS: "throw",
 };
 
 export function start(canvas: HTMLCanvasElement): void {
-	const input: Input = { left: false, right: false, jump: false, magnet: false };
+	const input: Input = { left: false, right: false, jump: false, magnet: false, throw: false };
 	const level = buildLevel(1);
 	// ?x=<tile> starts Śrubek deeper in the level, for looking at a section without replaying it.
 	const query = new URLSearchParams(location.search);

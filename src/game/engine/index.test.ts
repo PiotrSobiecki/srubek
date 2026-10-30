@@ -1,7 +1,7 @@
 import { buildLevel, levelFromRows, ROWS, TILE } from "@/game/level";
-import { createWorld, type Input, step, type World } from "./index";
+import { createWorld, type Input, SCRAP_CAPACITY, step, type World } from "./index";
 
-const IDLE: Input = { left: false, right: false, jump: false, magnet: false };
+const IDLE: Input = { left: false, right: false, jump: false, magnet: false, throw: false };
 
 // 20 tiles wide, wall on the right edge comes from the grid border.
 const FLAT = levelFromRows([
@@ -243,6 +243,8 @@ describe("magnet and dog-machine", () => {
 		step(world, IDLE);
 	}
 
+	const THROW: Input = { ...IDLE, throw: true };
+
 	it("pulls the nearest scrap in range and leaves the far one alone", () => {
 		const world = createWorld(YARD);
 		settle(world);
@@ -267,7 +269,7 @@ describe("magnet and dog-machine", () => {
 		settle(world);
 		tap(world, MAGNET);
 		const events = [];
-		tap(world, MAGNET);
+		tap(world, THROW);
 		for (let i = 0; i < 90; i++) events.push(...step(world, IDLE));
 		expect(events).toContainEqual({ type: "dog" });
 		expect(world.dogs[0]?.alive).toBe(false);
@@ -290,6 +292,19 @@ describe("magnet and dog-machine", () => {
 		for (let i = 0; i < 10; i++) events.push(...step(world, IDLE));
 		expect(events).toContainEqual({ type: "hit" });
 		expect(dog.alive).toBe(true);
+	});
+
+	it("carries at most SCRAP_CAPACITY pieces and throws them one at a time", () => {
+		const row = `..P${"s".repeat(14)}...`;
+		const world = createWorld(levelFromRows([".".repeat(20), row, "#".repeat(20)]));
+		settle(world);
+		// Roll along the row, pressing the magnet every few frames.
+		for (let i = 0; i < 240; i++) step(world, { ...IDLE, right: true, magnet: i % 8 === 0 });
+		const held = () => world.scraps.filter((s) => s.state === "held").length;
+		expect(held()).toBe(SCRAP_CAPACITY);
+		expect(world.scraps.filter((s) => s.state === "ground").length).toBeGreaterThan(0);
+		tap(world, THROW);
+		expect(held()).toBe(SCRAP_CAPACITY - 1);
 	});
 
 	it("level 1 puts scrap in front of every dog", () => {

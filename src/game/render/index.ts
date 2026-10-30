@@ -4,7 +4,15 @@
  * 960x512, shapes get gradients, rim lights and outlines, surfaces get texture.
  */
 
-import { EFFECT_FRAMES, type Player, type Press, VIEW_H, VIEW_W, type World } from "@/game/engine";
+import {
+	EFFECT_FRAMES,
+	type Player,
+	type Press,
+	SCRAP_CAPACITY,
+	VIEW_H,
+	VIEW_W,
+	type World,
+} from "@/game/engine";
 import { type Level, type PickupKind, TILE } from "@/game/level";
 import { BATTERY_MAX, type GameState, totalPoints } from "@/game/state";
 
@@ -1038,28 +1046,48 @@ function drawDog(ctx: Ctx, x: number, y: number, dir: number, frame: number): vo
 	ctx.restore();
 }
 
-function drawScrap(ctx: Ctx, x: number, y: number, held: boolean, frame: number): void {
+function drawScrap(ctx: Ctx, x: number, y: number, frame: number): void {
 	ctx.save();
-	ctx.translate(x + 4, y + 4);
+	ctx.translate(x + 6, y + 6);
 	ctx.rotate(frame / 30);
 	ctx.fillStyle = "#4e5760";
 	for (let i = 0; i < 6; i++) {
 		const a = (i / 6) * Math.PI * 2;
-		ctx.fillRect(Math.cos(a) * 3.2 - 1, Math.sin(a) * 3.2 - 1, 2, 2);
+		ctx.fillRect(Math.cos(a) * 4.8 - 1.4, Math.sin(a) * 4.8 - 1.4, 2.8, 2.8);
 	}
-	sphere(ctx, 0, 0, 3.4, "#c6d0d9", "#5a646e");
+	sphere(ctx, 0, 0, 5, "#c6d0d9", "#5a646e");
+	ctx.beginPath();
+	ctx.arc(0, 0, 5, 0, Math.PI * 2);
+	outline(ctx, 0.6);
 	ctx.fillStyle = "#2b2f36";
 	ctx.beginPath();
-	ctx.arc(0, 0, 1.2, 0, Math.PI * 2);
+	ctx.arc(0, 0, 1.8, 0, Math.PI * 2);
 	ctx.fill();
 	ctx.restore();
-	if (!held) return;
-	glow(ctx, x + 4, y + 4, 10, "rgba(79,240,224,A)", 0.4);
-	ctx.strokeStyle = `rgba(79,240,224,${0.5 + (frame % 10) / 20})`;
-	ctx.lineWidth = 1;
-	ctx.beginPath();
-	ctx.arc(x + 4, y + 4, 6.5, 0, Math.PI * 2);
-	ctx.stroke();
+}
+
+/** Carried pieces orbit above Śrubek's head, with a count once the pouch gets full. */
+function drawPouch(ctx: Ctx, world: World, camera: number): void {
+	const held = world.scraps.filter((s) => s.state === "held");
+	if (held.length === 0) return;
+	const p = world.player;
+	const cx = p.x + p.w / 2 - camera;
+	const cy = p.y - 16;
+	glow(ctx, cx, cy, 14 + held.length, "rgba(79,240,224,A)", 0.3);
+	held.forEach((_, i) => {
+		const a = world.frame / 25 + (i / held.length) * Math.PI * 2;
+		const r = 7 + held.length * 0.6;
+		ctx.save();
+		ctx.translate(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.45);
+		ctx.scale(0.55, 0.55);
+		drawScrap(ctx, -6, -6, world.frame + i * 7);
+		ctx.restore();
+	});
+	ctx.fillStyle = "#dffffb";
+	ctx.font = "bold 7px 'Trebuchet MS', sans-serif";
+	ctx.textAlign = "center";
+	ctx.fillText(`${held.length}/${SCRAP_CAPACITY}`, cx, cy - 10);
+	ctx.textAlign = "start";
 }
 
 function drawCharger(ctx: Ctx, x: number, y: number, frame: number): void {
@@ -1201,7 +1229,8 @@ function drawActors(ctx: Ctx, world: World, camera: number): void {
 		const bob = Math.sin((frame + item.x * 7) / 12) * 1.5;
 		drawPickup(ctx, item.kind, item.x * TILE + 8 - camera, item.y * TILE + 8 + bob, frame, item.x);
 	}
-	for (const s of world.scraps) drawScrap(ctx, s.x - camera, s.y, s.state === "held", frame);
+	for (const s of world.scraps) if (s.state !== "held") drawScrap(ctx, s.x - camera, s.y, frame);
+	drawPouch(ctx, world, camera);
 	for (const d of world.dogs) if (d.alive) drawDog(ctx, d.x - camera, d.y, d.dir, frame);
 	for (const d of world.drones) if (d.alive) drawDrone(ctx, d.x - camera, d.y, d.dir, frame);
 	drawSrubek(ctx, world.player, frame, camera);

@@ -42,6 +42,7 @@ export interface Input {
 	right: boolean;
 	jump: boolean;
 	magnet: boolean;
+	throw: boolean;
 }
 
 export interface Player {
@@ -64,6 +65,7 @@ export interface Player {
 	/** Frames of thruster flame to draw after an air jump. */
 	boostLeft: number;
 	magnetHeld: boolean;
+	throwHeld: boolean;
 }
 
 interface PickupItem extends Vec {
@@ -165,6 +167,7 @@ export function createWorld(level: Level): World {
 			airJumps: 1,
 			boostLeft: 0,
 			magnetHeld: false,
+			throwHeld: false,
 		},
 		pickups: level.pickups.map((n) => ({ ...n, taken: false })),
 		drones: level.drones.map((d) => ({
@@ -178,8 +181,8 @@ export function createWorld(level: Level): World {
 			alive: true,
 		})),
 		scraps: level.scraps.map((s) => ({
-			x: s.x * TILE + 4,
-			y: s.y * TILE + 8,
+			x: s.x * TILE + 2,
+			y: s.y * TILE + 4,
 			vx: 0,
 			vy: 0,
 			state: "ground",
@@ -322,7 +325,9 @@ function moveDrones(world: World): void {
 	}
 }
 
-const SCRAP = 8;
+const SCRAP = 12;
+/** How many pieces the magnet can carry at once. */
+export const SCRAP_CAPACITY = 10;
 
 function moveDogs(world: World): void {
 	for (const d of world.dogs) {
@@ -337,51 +342,52 @@ function moveDogs(world: World): void {
 	}
 }
 
-function nearestScrap(world: World): Scrap | undefined {
+function scrapsInRange(world: World): Scrap[] {
 	const p = world.player;
 	const cx = p.x + p.w / 2;
 	const cy = p.y + p.h / 2;
-	let best: Scrap | undefined;
-	let bestD: number = PHYSICS.magnetRange;
-	for (const s of world.scraps) {
-		if (s.state !== "ground") continue;
-		const d = Math.hypot(s.x + SCRAP / 2 - cx, s.y + SCRAP / 2 - cy);
-		if (d <= bestD) {
-			best = s;
-			bestD = d;
-		}
-	}
-	return best;
+	return world.scraps.filter(
+		(s) =>
+			s.state === "ground" &&
+			Math.hypot(s.x + SCRAP / 2 - cx, s.y + SCRAP / 2 - cy) <= PHYSICS.magnetRange,
+	);
 }
 
-/** One press pulls the nearest scrap in; the next press throws it the way Śrubek faces. */
+/** Thrown low, from the feet, so it skids along the ground into whatever walks there. */
+function throwScrap(p: Player, piece: Scrap, events: GameEvent[]): void {
+	piece.state = "thrown";
+	piece.x = p.facing > 0 ? p.x + p.w : p.x - SCRAP;
+	piece.y = p.y + p.h - SCRAP;
+	piece.vx = p.facing * PHYSICS.throwVx;
+	piece.vy = PHYSICS.throwVy;
+	events.push({ type: "throw" });
+}
+
+/** The magnet key pulls every piece in range into the pouch; the throw key hurls one. */
 function magnet(world: World, input: Input, events: GameEvent[]): void {
 	const p = world.player;
 	const pressed = input.magnet && !p.magnetHeld;
 	p.magnetHeld = input.magnet;
-	// Every press pulses the claw, so the key visibly does something even with no scrap near.
-	if (pressed)
+	const thrown = input.throw && !p.throwHeld;
+	p.throwHeld = input.throw;
+	const held = world.scraps.filter((s) => s.state === "held");
+
+	if (pressed) {
+		// Every press pulses the claw, so the key visibly does something even with no scrap near.
 		world.effects.push({ kind: "magnet", x: p.x + p.w / 2, y: p.y + 6, frame: world.frame });
-	const held = world.scraps.find((s) => s.state === "held");
-	if (held) {
-		held.x = p.x + p.w / 2 - SCRAP / 2;
-		held.y = p.y - SCRAP - 2;
-		if (pressed) {
-			// Thrown low, from the feet, so it skids along the ground into whatever walks there.
-			held.state = "thrown";
-			held.x = p.facing > 0 ? p.x + p.w : p.x - SCRAP;
-			held.y = p.y + p.h - SCRAP;
-			held.vx = p.facing * PHYSICS.throwVx;
-			held.vy = PHYSICS.throwVy;
-			events.push({ type: "throw" });
-		}
-		return;
+		const room = SCRAP_CAPACITY - held.length;
+		const pulled = scrapsInRange(world).slice(0, Math.max(0, room));
+		for (const s of pulled) s.state = "held";
+		if (pulled.length > 0) events.push({ type: "pull" });
 	}
-	if (!pressed) return;
-	const target = nearestScrap(world);
-	if (target) {
-		target.state = "held";
-		events.push({ type: "pull" });
+
+	if (thrown && held[0]) throwScrap(p, held[0], events);
+
+	// Carried pieces ride along above the head; the renderer fans them out.
+	for (const s of world.scraps) {
+		if (s.state !== "held") continue;
+		s.x = p.x + p.w / 2 - SCRAP / 2;
+		s.y = p.y - SCRAP - 2;
 	}
 }
 

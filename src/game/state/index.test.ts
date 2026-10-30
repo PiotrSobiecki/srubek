@@ -2,6 +2,8 @@ import {
 	applyEvents,
 	BATTERY_MAX,
 	BOLT_POINTS,
+	BOSS_HIT_POINTS,
+	BOSS_POINTS,
 	createState,
 	DOG_POINTS,
 	DRONE_POINTS,
@@ -71,10 +73,25 @@ describe("battery and lives", () => {
 		expect(s.respawns).toBe(1);
 	});
 
-	it("the gate switches to the boss and freezes scoring", () => {
+	it("the gate switches to the boss and scoring continues in the arena", () => {
 		const s = applyEvents(createState(), [{ type: "gate" }, { type: "pickup", kind: "nut" }]);
 		expect(s.status).toBe("boss");
-		expect(s.levelPoints).toBe(0);
+		expect(s.levelPoints).toBe(NUT_POINTS);
+	});
+
+	it("boss hits score and the final blow wins the run", () => {
+		let s = applyEvents(createState(), [{ type: "gate" }, { type: "bossHit" }]);
+		expect(s.status).toBe("boss");
+		expect(s.levelPoints).toBe(BOSS_HIT_POINTS);
+		s = applyEvents(s, [{ type: "bossDown" }]);
+		expect(s.status).toBe("won");
+		expect(s.levelPoints).toBe(BOSS_HIT_POINTS + BOSS_POINTS);
+	});
+
+	it("losing a life in the arena stays in the arena", () => {
+		const s = applyEvents(createState(), [{ type: "gate" }, { type: "fall" }]);
+		expect(s.status).toBe("boss");
+		expect(s.lives).toBe(LIVES_START - 1);
 	});
 
 	it("keeps banked points from earlier levels through a lost life", () => {

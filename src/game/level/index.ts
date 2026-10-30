@@ -205,6 +205,17 @@ export function isSolid(level: Level, tx: number, ty: number): boolean {
 	return c === "#" || c === "=";
 }
 
+/** One screen wide, walled on both sides: where the boss is fought. */
+export function buildArena(): Level {
+	const width = 30;
+	const rows = Array.from({ length: ROWS }, (_, y) => {
+		if (y >= ROWS - 2) return "#".repeat(width);
+		const inner = y === ROWS - 3 ? `...P${".".repeat(width - 6)}` : ".".repeat(width - 2);
+		return `#${inner}#`;
+	});
+	return levelFromRows(rows, []);
+}
+
 export function buildLevel(n: number): Level {
 	// shortcut: only level 1 exists, generator arrives in phase 10
 	if (n !== 1) return buildLevel(1);

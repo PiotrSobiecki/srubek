@@ -3,6 +3,8 @@
  * in pixels per frame so a test can replay N frames and assert on positions.
  */
 
+import type { Boss } from "@/game/boss";
+import { stepBoss } from "@/game/boss";
 import { isSolid, type Level, type PickupKind, ROWS, TILE, type Vec } from "@/game/level";
 
 export const VIEW_W = 480;
@@ -75,7 +77,7 @@ interface PickupItem extends Vec {
 
 /** A short visual, kept in the world so a test can see it and the renderer can draw it. */
 interface Effect {
-	kind: "burst" | "spark" | "charge" | "magnet" | "dust";
+	kind: "burst" | "spark" | "charge" | "magnet" | "dust" | "quake";
 	x: number;
 	y: number;
 	frame: number;
@@ -127,6 +129,7 @@ export interface World {
 	scraps: Scrap[];
 	dogs: Dog[];
 	presses: Press[];
+	boss?: Boss;
 	effects: Effect[];
 	camera: number;
 	frame: number;
@@ -143,13 +146,17 @@ export type GameEvent =
 	| { type: "jump" }
 	| { type: "airjump" }
 	| { type: "pull" }
-	| { type: "throw" };
+	| { type: "throw" }
+	| { type: "slam" }
+	| { type: "bossHit" }
+	| { type: "bossDown" };
 
-export function createWorld(level: Level): World {
+export function createWorld(level: Level, boss?: Boss): World {
 	const w = 12;
 	const h = 16;
 	return {
 		level,
+		boss,
 		player: {
 			x: level.spawn.x * TILE + (TILE - w) / 2,
 			y: level.spawn.y * TILE + TILE - h,
@@ -442,7 +449,7 @@ function touchDogs(world: World, events: GameEvent[]): void {
 	}
 }
 
-function hurt(p: Player, fromX: number, events: GameEvent[]): void {
+export function hurt(p: Player, fromX: number, events: GameEvent[]): void {
 	if (p.hurtLeft > 0) return;
 	p.hurtLeft = PHYSICS.hurtFrames;
 	p.vx = p.x + p.w / 2 < fromX ? -PHYSICS.knockback : PHYSICS.knockback;
@@ -555,6 +562,7 @@ export function step(world: World, input: Input): GameEvent[] {
 	touchDogs(world, events);
 	touchPresses(world, events);
 	touchPickups(world, events);
+	stepBoss(world, events);
 	if (p.hurtLeft > 0) p.hurtLeft -= 1;
 	if (p.boostLeft > 0) p.boostLeft -= 1;
 	if (p.y > ROWS * TILE) events.push({ type: "fall" });

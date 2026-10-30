@@ -1,8 +1,9 @@
 /** Browser entry: keyboard in, fixed-step simulation, one render per animation frame. */
 
 import { createAudio } from "@/game/audio";
+import { createBoss, makeBoss } from "@/game/boss";
 import { createWorld, type Input, step, type World } from "@/game/engine";
-import { buildLevel } from "@/game/level";
+import { buildArena, buildLevel } from "@/game/level";
 import { createRenderer } from "@/game/render";
 import { applyEvents, createState, type GameState } from "@/game/state";
 
@@ -62,14 +63,20 @@ export function start(canvas: HTMLCanvasElement): void {
 	window.addEventListener("keydown", onKey(true));
 	window.addEventListener("keyup", onKey(false));
 
+	const arena = buildArena();
+	const enterArena = (): World =>
+		createWorld(arena, createBoss(makeBoss("prasa", "opad", "rdzen", 1), arena.widthTiles));
+
 	const tick = (): void => {
-		if (state.status !== "playing") return;
+		if (state.status === "over" || state.status === "won") return;
 		const events = step(world, input);
 		audio.react(events);
 		const next = applyEvents(state, events);
 		for (const key of released) input[key] = false;
 		released.clear();
-		if (next.respawns !== state.respawns) world = createWorld(level);
+		if (next.status === "boss" && state.status === "playing") world = enterArena();
+		else if (next.respawns !== state.respawns)
+			world = next.status === "boss" ? enterArena() : createWorld(level);
 		state = next;
 	};
 

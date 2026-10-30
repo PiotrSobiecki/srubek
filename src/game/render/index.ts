@@ -4,6 +4,7 @@
  * 960x512, shapes get gradients, rim lights and outlines, surfaces get texture.
  */
 
+import { type Boss, coreOpen } from "@/game/boss";
 import {
 	EFFECT_FRAMES,
 	type Player,
@@ -78,6 +79,31 @@ function rim(ctx: Ctx, alpha = 0.5): void {
 	ctx.translate(-0.9, -0.9);
 	ctx.stroke();
 	ctx.restore();
+}
+
+/** Comic-style text: warm gradient fill with a dark outline, like the page title. */
+function fancyText(
+	ctx: Ctx,
+	text: string,
+	x: number,
+	y: number,
+	size: number,
+	align: CanvasTextAlign = "left",
+): void {
+	ctx.font = `${size}px Bangers, Impact, sans-serif`;
+	ctx.textAlign = align;
+	ctx.textBaseline = "middle";
+	ctx.lineJoin = "round";
+	ctx.lineWidth = Math.max(1.5, size / 7);
+	ctx.strokeStyle = "#2a140c";
+	ctx.strokeText(text, x, y);
+	const g = ctx.createLinearGradient(0, y - size / 2, 0, y + size / 2);
+	g.addColorStop(0, "#fff2b0");
+	g.addColorStop(0.5, "#ffb347");
+	g.addColorStop(1, "#ff6a3d");
+	ctx.fillStyle = g;
+	ctx.fillText(text, x, y);
+	ctx.textAlign = "left";
 }
 
 function hexagon(ctx: Ctx, r: number): void {
@@ -766,7 +792,7 @@ function drawSpark(ctx: Ctx, x: number, y: number, t: number): void {
 		ctx.fill();
 	}
 	ctx.fillStyle = `rgba(255,255,255,${(1 - k) * 0.8})`;
-	ctx.font = "bold 7px 'Trebuchet MS', sans-serif";
+	ctx.font = "bold 7px Bangers, Impact, sans-serif";
 	ctx.fillText("+", x - 2, y - 6 - t * 0.5);
 }
 
@@ -811,6 +837,17 @@ function drawMagnetPulse(ctx: Ctx, x: number, y: number, t: number): void {
 	ctx.stroke();
 }
 
+function drawQuake(ctx: Ctx, x: number, y: number, t: number): void {
+	const k = t / EFFECT_FRAMES;
+	ctx.fillStyle = `rgba(200,180,150,${(1 - k) * 0.6})`;
+	for (let i = 0; i < 10; i++) {
+		const dir = i % 2 ? 1 : -1;
+		const px = x + dir * (20 + t * 2.2 + i * 3);
+		const py = y - 2 - Math.sin((t + i) / 3) * 4 - i;
+		ctx.fillRect(px, py, 2.5, 2.5);
+	}
+}
+
 function drawEffects(ctx: Ctx, world: World, camera: number): void {
 	const p = world.player;
 	for (const e of world.effects) {
@@ -819,6 +856,7 @@ function drawEffects(ctx: Ctx, world: World, camera: number): void {
 		if (e.kind === "burst") drawBurst(ctx, x, e.y, t);
 		else if (e.kind === "spark") drawSpark(ctx, x, e.y, t);
 		else if (e.kind === "dust") drawDust(ctx, x, e.y, t);
+		else if (e.kind === "quake") drawQuake(ctx, x, e.y, t);
 		else if (e.kind === "magnet") drawMagnetPulse(ctx, p.x + p.w / 2 - camera, p.y + 6, t);
 		else drawChargeArc(ctx, x, e.y, t, p.x + p.w / 2 - camera, p.y + 4);
 	}
@@ -1083,11 +1121,7 @@ function drawPouch(ctx: Ctx, world: World, camera: number): void {
 		drawScrap(ctx, -6, -6, world.frame + i * 7);
 		ctx.restore();
 	});
-	ctx.fillStyle = "#dffffb";
-	ctx.font = "bold 7px 'Trebuchet MS', sans-serif";
-	ctx.textAlign = "center";
-	ctx.fillText(`${held.length}/${SCRAP_CAPACITY}`, cx, cy - 10);
-	ctx.textAlign = "start";
+	fancyText(ctx, `${held.length}/${SCRAP_CAPACITY}`, cx, cy - 10, 9, "center");
 }
 
 function drawCharger(ctx: Ctx, x: number, y: number, frame: number): void {
@@ -1124,10 +1158,7 @@ function drawHud(ctx: Ctx, state: GameState, frame: number): void {
 	ctx.lineWidth = 0.8;
 	ctx.stroke();
 	drawNut(ctx, 15, 14, frame / 20);
-	ctx.fillStyle = "#fff4d6";
-	ctx.font = "bold 10px 'Trebuchet MS', sans-serif";
-	ctx.textBaseline = "middle";
-	ctx.fillText(String(totalPoints(state)).padStart(6, "0"), 24, 14.5);
+	fancyText(ctx, String(totalPoints(state)).padStart(6, "0"), 24, 14.5, 13);
 	for (let i = 0; i < BATTERY_MAX; i++) {
 		rounded(ctx, 70 + i * 10, 10, 8, 8, 2);
 		ctx.fillStyle = i < state.battery ? "#4ff0e0" : "#2b2f36";
@@ -1154,19 +1185,16 @@ function drawHud(ctx: Ctx, state: GameState, frame: number): void {
 function drawOverlay(ctx: Ctx, state: GameState): void {
 	ctx.fillStyle = "rgba(5,4,12,0.62)";
 	ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-	ctx.fillStyle = "#fff4d6";
-	ctx.textAlign = "center";
-	ctx.textBaseline = "middle";
-	ctx.font = "bold 24px 'Trebuchet MS', sans-serif";
-	ctx.fillText(
-		state.status === "over" ? "KONIEC GRY" : "BRAMA OTWARTA!",
+	fancyText(
+		ctx,
+		state.status === "over" ? "KONIEC GRY" : "WYGRANA!",
 		VIEW_W / 2,
-		VIEW_H / 2 - 22,
+		VIEW_H / 2 - 24,
+		40,
+		"center",
 	);
-	ctx.font = "12px 'Trebuchet MS', sans-serif";
-	ctx.fillText(`wynik ${totalPoints(state)}`, VIEW_W / 2, VIEW_H / 2 + 4);
-	ctx.fillText("Enter: jeszcze raz", VIEW_W / 2, VIEW_H / 2 + 22);
-	ctx.textAlign = "start";
+	fancyText(ctx, `wynik ${totalPoints(state)}`, VIEW_W / 2, VIEW_H / 2 + 8, 18, "center");
+	fancyText(ctx, "Enter: jeszcze raz", VIEW_W / 2, VIEW_H / 2 + 30, 14, "center");
 }
 
 // ── renderer ─────────────────────────────────────────────────────────
@@ -1219,16 +1247,86 @@ function drawGate(ctx: Ctx, x: number, y: number, frame: number): void {
 	sphere(ctx, x + TILE / 2, y - 3, 2, "#fff0b0", "#d9901c");
 }
 
-function drawActors(ctx: Ctx, world: World, camera: number): void {
+function drawBoss(ctx: Ctx, boss: Boss, frame: number, camera: number): void {
+	if (!boss.alive) return;
+	const x = Math.round(boss.x - camera);
+	const y = Math.round(boss.y);
+	// Twin pistons from above the screen down to the head.
+	for (const px of [x + 10, x + boss.w - 16]) {
+		ctx.fillStyle = shade(ctx, 0, y + 6, "#b9c3cc", "#4a535d");
+		ctx.fillRect(px, 0, 6, y + 6);
+		ctx.fillStyle = "rgba(255,255,255,0.4)";
+		ctx.fillRect(px + 1, 0, 1.5, y + 6);
+	}
+	ctx.fillStyle = "rgba(0,0,0,0.3)";
+	ctx.beginPath();
+	ctx.ellipse(x + boss.w / 2, boss.floorY + boss.h + 1, boss.w / 2, 3, 0, 0, Math.PI * 2);
+	ctx.fill();
+	// Head block with a plated face and hazard stripes along the bottom.
+	rounded(ctx, x, y + 4, boss.w, boss.h - 4, 3);
+	ctx.fillStyle = shade(ctx, y + 4, boss.h - 4, "#c2ccd5", "#3f4852");
+	ctx.fill();
+	outline(ctx, 1);
+	rim(ctx, 0.4);
+	ctx.fillStyle = "#1b1a22";
+	ctx.fillRect(x, y + boss.h - 5, boss.w, 5);
+	for (let i = 0; i < boss.w / 8; i++) {
+		ctx.fillStyle = "#e9c136";
+		ctx.fillRect(x + i * 8 + 1, y + boss.h - 5, 4, 5);
+	}
+	for (const [rx, ry] of [
+		[5, 9],
+		[boss.w - 5, 9],
+		[5, boss.h - 9],
+		[boss.w - 5, boss.h - 9],
+	] as const) {
+		sphere(ctx, x + rx, y + ry, 1.8, "#ffffff", "#6f7a86");
+	}
+	// Core on top: a glass dome, lit red when bare.
+	const open = coreOpen(boss);
+	const cx = x + boss.w / 2;
+	if (open) glow(ctx, cx, y + 2, 16, "rgba(255,80,60,A)", 0.5 + Math.sin(frame / 4) * 0.2);
+	ctx.beginPath();
+	ctx.arc(cx, y + 4, 7, Math.PI, 0);
+	ctx.closePath();
+	ctx.fillStyle = open ? "rgba(255,120,100,0.85)" : "#2b2f36";
+	ctx.fill();
+	outline(ctx, 0.8);
+	if (open) sphere(ctx, cx, y + 1, 3, "#fff0b0", "#d8261b");
+	// Warning lamp while dropping.
+	if (boss.phase === "drop") glow(ctx, cx, y + boss.h, 24, "rgba(255,120,60,A)", 0.4);
+}
+
+function drawBossBar(ctx: Ctx, boss: Boss): void {
+	const w = 120;
+	const x = (VIEW_W - w) / 2;
+	rounded(ctx, x - 2, 6, w + 4, 10, 4);
+	ctx.fillStyle = "rgba(10,8,20,0.55)";
+	ctx.fill();
+	for (let i = 0; i < boss.spec.hp; i++) {
+		rounded(ctx, x + (i * w) / boss.spec.hp + 1, 8, w / boss.spec.hp - 2, 6, 2);
+		ctx.fillStyle = i < boss.hp ? "#ff5a5a" : "#2b2f36";
+		ctx.fill();
+	}
+	fancyText(ctx, "PRASA-OLBRZYM", VIEW_W / 2, 23, 10, "center");
+}
+
+function drawPickups(ctx: Ctx, world: World, camera: number): void {
 	const frame = world.frame;
-	for (const c of world.level.chargers) drawCharger(ctx, c.x * TILE - camera, c.y * TILE, frame);
-	for (const g of world.level.gates) drawGate(ctx, g.x * TILE - camera, (g.y - 2) * TILE, frame);
-	for (const p of world.presses) drawPress(ctx, p, camera);
 	for (const item of world.pickups) {
 		if (item.taken) continue;
 		const bob = Math.sin((frame + item.x * 7) / 12) * 1.5;
 		drawPickup(ctx, item.kind, item.x * TILE + 8 - camera, item.y * TILE + 8 + bob, frame, item.x);
 	}
+}
+
+function drawActors(ctx: Ctx, world: World, camera: number): void {
+	if (world.boss) drawBoss(ctx, world.boss, world.frame, camera);
+	const frame = world.frame;
+	for (const c of world.level.chargers) drawCharger(ctx, c.x * TILE - camera, c.y * TILE, frame);
+	for (const g of world.level.gates) drawGate(ctx, g.x * TILE - camera, (g.y - 2) * TILE, frame);
+	for (const p of world.presses) drawPress(ctx, p, camera);
+	drawPickups(ctx, world, camera);
 	for (const s of world.scraps) if (s.state !== "held") drawScrap(ctx, s.x - camera, s.y, frame);
 	drawPouch(ctx, world, camera);
 	for (const d of world.dogs) if (d.alive) drawDog(ctx, d.x - camera, d.y, d.dir, frame);
@@ -1248,7 +1346,11 @@ export function createRenderer(canvas: HTMLCanvasElement, theme: Theme = "zlomow
 	const textures = loadTextures();
 	return (world, state) => {
 		const camera = Math.round(world.camera);
-		ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+		const quake = world.effects.find((e) => e.kind === "quake");
+		const shake = quake ? Math.max(0, 12 - (world.frame - quake.frame)) : 0;
+		const sx = shake ? (noise(world.frame, 1, 97) - 0.5) * shake : 0;
+		const sy = shake ? (noise(world.frame, 2, 97) - 0.5) * shake : 0;
+		ctx.setTransform(SCALE, 0, 0, SCALE, sx * SCALE, sy * SCALE);
 		drawBackground(ctx, backdrop, camera, world.frame);
 		drawTiles(ctx, textures, world.level, camera);
 		drawActors(ctx, world, camera);
@@ -1266,6 +1368,7 @@ export function createRenderer(canvas: HTMLCanvasElement, theme: Theme = "zlomow
 		ctx.fillStyle = v;
 		ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 		drawHud(ctx, state, world.frame);
-		if (state.status !== "playing") drawOverlay(ctx, state);
+		if (world.boss?.alive) drawBossBar(ctx, world.boss);
+		if (state.status === "over" || state.status === "won") drawOverlay(ctx, state);
 	};
 }

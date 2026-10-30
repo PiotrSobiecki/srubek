@@ -8,6 +8,8 @@ export const BOLT_POINTS = 5;
 export const GEAR_POINTS = 25;
 export const DRONE_POINTS = 50;
 export const DOG_POINTS = 100;
+export const BOSS_HIT_POINTS = 100;
+export const BOSS_POINTS = 500;
 export const BATTERY_MAX = 3;
 export const LIVES_START = 3;
 
@@ -21,7 +23,7 @@ export interface GameState {
 	/** Bumps each time a life is lost, so the caller knows to respawn. */
 	respawns: number;
 	/** `boss` means the gate was reached; the arena arrives in phase 7. */
-	status: "playing" | "boss" | "over";
+	status: "playing" | "boss" | "won" | "over";
 }
 
 export function createState(): GameState {
@@ -47,7 +49,7 @@ function loseLife(state: GameState): GameState {
 		levelPoints: 0,
 		battery: BATTERY_MAX,
 		respawns: state.respawns + 1,
-		status: lives > 0 ? "playing" : "over",
+		status: lives > 0 ? state.status : "over",
 	};
 }
 
@@ -78,6 +80,11 @@ function applyEvent(state: GameState, event: GameEvent): GameState {
 			return loseLife(state);
 		case "gate":
 			return { ...state, status: "boss" };
+		case "bossHit":
+			return { ...state, levelPoints: state.levelPoints + BOSS_HIT_POINTS };
+		case "bossDown":
+			return { ...state, levelPoints: state.levelPoints + BOSS_POINTS, status: "won" };
+		case "slam":
 		case "jump":
 		case "airjump":
 		case "pull":
@@ -92,6 +99,8 @@ function applyEvent(state: GameState, event: GameEvent): GameState {
 
 export function applyEvents(state: GameState, events: GameEvent[]): GameState {
 	let next = state;
-	for (const e of events) if (next.status === "playing") next = applyEvent(next, e);
+	for (const e of events) {
+		if (next.status === "playing" || next.status === "boss") next = applyEvent(next, e);
+	}
 	return next;
 }

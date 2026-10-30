@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/PiotrSobiecki/srubek/compare/v1.16.0...v1.17.0) (2026-10-30)
+
+
+### Features
+
+* bossowie partia 2: koparka, zgniatarka, wieża strażnicza ([de65894](https://github.com/PiotrSobiecki/srubek/commit/de65894bcf512f515fbed921db23ac05d934349e))
+
 # [1.16.0](https://github.com/PiotrSobiecki/srubek/compare/v1.15.1...v1.16.0) (2026-10-30)
 
 

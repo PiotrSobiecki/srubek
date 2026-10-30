@@ -1,3 +1,10 @@
+## [1.15.1](https://github.com/PiotrSobiecki/srubek/compare/v1.15.0...v1.15.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* po zapisie wyniku znika napis Zapisuję ([5c28c05](https://github.com/PiotrSobiecki/srubek/commit/5c28c05325c0964abc749a981fed4ae3ab12fd24))
+
 # [1.15.0](https://github.com/PiotrSobiecki/srubek/compare/v1.14.1...v1.15.0) (2026-10-30)
 
 

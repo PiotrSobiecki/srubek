@@ -52,12 +52,15 @@ export interface Game {
 	setSkin(skin: Skin): void;
 	/** Steer toward a point on the canvas (0..1 of its width), or stop steering. */
 	pointAt(fraction: number | undefined): void;
+	/** Freeze the simulation (menu open); drawing continues. */
+	setPaused(paused: boolean): void;
 }
 
 export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 	let board: readonly BoardRow[] = [];
 	let skin: Skin = DEFAULT_SKIN;
 	let pointer: number | undefined;
+	let paused = false;
 	const input: Input = {
 		left: false,
 		right: false,
@@ -83,6 +86,7 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 	const render = createRenderer(canvas);
 	const audio = createAudio(((startLevel - 1) % 3) + 1);
 	const onShortcut = (code: string): void => {
+		if (paused) return;
 		audio.unlock();
 		if (code === "KeyM") audio.toggleMute();
 		if (code === "Enter" && state.status === "cleared") {
@@ -143,7 +147,7 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 	};
 
 	const tick = (): void => {
-		if (state.status === "over" || state.status === "cleared") return;
+		if (paused || state.status === "over" || state.status === "cleared") return;
 		if (pointer !== undefined) {
 			// The mouse steers: run toward the pointer until Śrubek is under it.
 			const px = pointer * VIEW_W + world.camera;
@@ -198,6 +202,9 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 		},
 		setSkin(next) {
 			skin = next;
+		},
+		setPaused(next) {
+			paused = next;
 		},
 		pointAt(fraction) {
 			pointer = fraction;

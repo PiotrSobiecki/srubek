@@ -9,39 +9,43 @@ import Layout from "@/layouts/Layout.astro";
 		<div id="stage" class="relative w-full max-w-[960px]">
 			<canvas id="game" width="960" height="512" class="block w-full rounded-lg bg-neutral-900 shadow-2xl" aria-label="Gra Śrubek"></canvas>
 			<div id="pad" hidden class="pad"></div>
+
+			<div id="menu" class="menu">
+				<div class="menu-panel">
+					<h2 class="title text-3xl tracking-wider">SZAFA ŚRUBKA</h2>
+					<p class="hint text-sm tracking-wide text-amber-200/80">Wybierz gotowy strój albo złóż własny. Śrubek po lewej od razu go przymierza.</p>
+					<div id="presets" class="flex flex-wrap gap-2"></div>
+					<div class="grid grid-cols-3 gap-2">
+						<label class="hint flex flex-col gap-1 text-sm tracking-wide text-amber-100">Korpus
+							<input id="skin-body" type="color" class="h-8 w-full cursor-pointer rounded border border-amber-300/40 bg-neutral-900" />
+						</label>
+						<label class="hint flex flex-col gap-1 text-sm tracking-wide text-amber-100">Oczy
+							<input id="skin-eyes" type="color" class="h-8 w-full cursor-pointer rounded border border-amber-300/40 bg-neutral-900" />
+						</label>
+						<label class="hint flex flex-col gap-1 text-sm tracking-wide text-amber-100">Dodatki
+							<input id="skin-accent" type="color" class="h-8 w-full cursor-pointer rounded border border-amber-300/40 bg-neutral-900" />
+						</label>
+						<label class="hint col-span-3 flex flex-col gap-1 text-sm tracking-wide text-amber-100 sm:col-span-1">Na głowie
+							<select id="skin-hat" class="h-8 rounded border border-amber-300/40 bg-neutral-900 px-2 text-sm text-amber-50"></select>
+						</label>
+						<label class="hint col-span-3 flex flex-col gap-1 text-sm tracking-wide text-amber-100 sm:col-span-2">Dodatek
+							<select id="skin-accessory" class="h-8 rounded border border-amber-300/40 bg-neutral-900 px-2 text-sm text-amber-50"></select>
+						</label>
+					</div>
+					<button id="play" type="button" class="title mt-1 rounded-lg border-2 border-amber-300/60 bg-neutral-950/80 px-6 py-2 text-3xl tracking-wider hover:border-amber-200">GRAJ</button>
+					<p class="text-xs text-neutral-400">Strój zapisuje się w tej przeglądarce. Esc albo przycisk Menu wraca tutaj.</p>
+				</div>
+			</div>
 		</div>
 
 		<div class="flex flex-wrap justify-center gap-2">
 			<button id="fullscreen" type="button" class="hint rounded border border-amber-300/40 bg-neutral-900 px-3 py-1 text-base tracking-wide text-amber-100 hover:border-amber-300">Pełny ekran</button>
+			<button id="open-menu" type="button" class="hint rounded border border-amber-300/40 bg-neutral-900 px-3 py-1 text-base tracking-wide text-amber-100 hover:border-amber-300">Menu</button>
 			<button id="toggle-pad" type="button" class="hint rounded border border-amber-300/40 bg-neutral-900 px-3 py-1 text-base tracking-wide text-amber-100 hover:border-amber-300">Przyciski na ekranie</button>
 		</div>
 
 		<p class="hint max-w-[960px] text-center text-sm tracking-wide text-amber-200/80 sm:text-base">strzałki / WASD: jazda · spacja: skok (przytrzymaj, by skoczyć wyżej; w locie raz jeszcze) · C: magnes zbiera złom (do 10 szt.) · X: rzut złomem · Z: mega kula (za 10 śrub) · M: dźwięk · mysz: trzymaj lewy, by jechać w stronę kursora, prawy skok, środkowy rzut</p>
 
-		<details id="wardrobe" class="w-full max-w-[960px] rounded-xl border border-amber-300/30 bg-neutral-900/70 p-4">
-			<summary class="hint cursor-pointer text-2xl tracking-wide text-amber-200">Szafa Śrubka: wybierz albo stwórz strój</summary>
-			<div class="mt-3 flex flex-col gap-4">
-				<div id="presets" class="flex flex-wrap gap-2"></div>
-				<div class="grid gap-3 sm:grid-cols-5">
-					<label class="hint flex flex-col gap-1 text-base tracking-wide text-amber-100">Korpus
-						<input id="skin-body" type="color" class="h-9 w-full cursor-pointer rounded border border-amber-300/40 bg-neutral-900" />
-					</label>
-					<label class="hint flex flex-col gap-1 text-base tracking-wide text-amber-100">Oczy
-						<input id="skin-eyes" type="color" class="h-9 w-full cursor-pointer rounded border border-amber-300/40 bg-neutral-900" />
-					</label>
-					<label class="hint flex flex-col gap-1 text-base tracking-wide text-amber-100">Dodatki (kolor)
-						<input id="skin-accent" type="color" class="h-9 w-full cursor-pointer rounded border border-amber-300/40 bg-neutral-900" />
-					</label>
-					<label class="hint flex flex-col gap-1 text-base tracking-wide text-amber-100">Na głowie
-						<select id="skin-hat" class="h-9 rounded border border-amber-300/40 bg-neutral-900 px-2 text-amber-50"></select>
-					</label>
-					<label class="hint flex flex-col gap-1 text-base tracking-wide text-amber-100">Dodatek
-						<select id="skin-accessory" class="h-9 rounded border border-amber-300/40 bg-neutral-900 px-2 text-amber-50"></select>
-					</label>
-				</div>
-				<p class="text-xs text-neutral-400">Strój zapisuje się w tej przeglądarce i od razu widać go w grze.</p>
-			</div>
-		</details>
 	</main>
 
 	<div id="score-modal" hidden class="fixed inset-0 z-10 flex items-center justify-center bg-black/60 p-4">
@@ -126,6 +130,35 @@ import Layout from "@/layouts/Layout.astro";
 		color: #1b1a22;
 	}
 
+	/* Start menu over the right side of the stage; the left stays clear so Śrubek shows. */
+	.menu {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		justify-content: flex-end;
+		align-items: stretch;
+		background: linear-gradient(90deg, rgba(5, 4, 12, 0) 0%, rgba(5, 4, 12, 0.55) 30%, rgba(5, 4, 12, 0.85) 45%);
+		border-radius: 0.5rem;
+	}
+	.menu-panel {
+		width: 62%;
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+		padding: 1rem 1.2rem;
+		overflow-y: auto;
+	}
+	@media (max-width: 640px) {
+		.menu {
+			background: rgba(5, 4, 12, 0.85);
+		}
+		.menu-panel {
+			width: 100%;
+			padding: 0.6rem;
+			gap: 0.4rem;
+		}
+	}
+
 	/* Wardrobe presets: a swatch of the shell colour with the accent as a stripe. */
 	.preset {
 		font-family: "Bangers", "Impact", sans-serif;
@@ -160,6 +193,9 @@ import Layout from "@/layouts/Layout.astro";
 	const pad = document.getElementById("pad");
 	const fullscreen = document.getElementById("fullscreen");
 	const togglePad = document.getElementById("toggle-pad");
+	const menu = document.getElementById("menu");
+	const play = document.getElementById("play");
+	const openMenu = document.getElementById("open-menu");
 	const modal = document.getElementById("score-modal");
 	const form = document.getElementById("score-form");
 	const nick = document.getElementById("score-nick");
@@ -171,6 +207,9 @@ import Layout from "@/layouts/Layout.astro";
 		pad instanceof HTMLElement &&
 		fullscreen instanceof HTMLButtonElement &&
 		togglePad instanceof HTMLButtonElement &&
+		menu instanceof HTMLElement &&
+		play instanceof HTMLButtonElement &&
+		openMenu instanceof HTMLButtonElement &&
 		modal instanceof HTMLElement &&
 		form instanceof HTMLFormElement &&
 		nick instanceof HTMLInputElement &&
@@ -197,6 +236,18 @@ import Layout from "@/layouts/Layout.astro";
 				showPad(padOn);
 			});
 			mountMouse(canvas, game);
+			const g = game;
+			const setMenu = (open: boolean): void => {
+				menu.hidden = !open;
+				g.setPaused(open);
+			};
+			setMenu(true);
+			play.addEventListener("click", () => setMenu(false));
+			openMenu.addEventListener("click", () => setMenu(true));
+			window.addEventListener("keydown", (e) => {
+				if (e.code === "Escape") setMenu(menu.hidden);
+				else if (e.code === "Enter" && !menu.hidden && !(e.target instanceof HTMLInputElement)) setMenu(false);
+			});
 			mountWardrobe(
 				{ presets, body: skinBody, eyes: skinEyes, accent: skinAccent, hat: skinHat, accessory: skinAccessory },
 				game,

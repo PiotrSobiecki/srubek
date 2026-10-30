@@ -1,3 +1,10 @@
+## [1.27.1](https://github.com/PiotrSobiecki/srubek/compare/v1.27.0...v1.27.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* gra na telefonie: tryb poziomy na cały ekran, prośba o obrót w pionie ([548ae1e](https://github.com/PiotrSobiecki/srubek/commit/548ae1e32449f6841a546415f89ca3f5dedbba86))
+
 # [1.27.0](https://github.com/PiotrSobiecki/srubek/compare/v1.26.0...v1.27.0) (2026-10-30)
 
 

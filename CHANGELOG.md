@@ -1,3 +1,10 @@
+# [1.22.0](https://github.com/PiotrSobiecki/srubek/compare/v1.21.0...v1.22.0) (2026-10-30)
+
+
+### Features
+
+* szafa Śrubka: gotowe stroje i własny kreator ([aab9014](https://github.com/PiotrSobiecki/srubek/commit/aab90141a55365113e77f8c60f993d81d34ebc89))
+
 # [1.21.0](https://github.com/PiotrSobiecki/srubek/compare/v1.20.0...v1.21.0) (2026-10-30)
 
 

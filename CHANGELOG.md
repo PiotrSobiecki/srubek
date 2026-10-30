@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/PiotrSobiecki/srubek/compare/v1.0.0...v1.0.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* środowisko Cloudflare wybierane przy build, nie przy wrangler deploy ([ee9c7f6](https://github.com/PiotrSobiecki/srubek/commit/ee9c7f67e6cbe233b065fb91ec8ca906f8c32a28))
+
 # 1.0.0 (2026-10-30)
 
 

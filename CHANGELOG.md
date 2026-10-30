@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/PiotrSobiecki/srubek/compare/v1.9.0...v1.10.0) (2026-10-30)
+
+
+### Features
+
+* większy złom i sakwa magnesu na 10 sztuk ([e63fcc7](https://github.com/PiotrSobiecki/srubek/commit/e63fcc792fd6910314a663a125ce96932cb32fe1))
+
 # [1.9.0](https://github.com/PiotrSobiecki/srubek/compare/v1.8.0...v1.9.0) (2026-10-30)
 
 

@@ -26,11 +26,16 @@ export function start(canvas: HTMLCanvasElement): void {
 	const input: Input = { left: false, right: false, jump: false, magnet: false };
 	const level = buildLevel(1);
 	// ?x=<tile> starts Śrubek deeper in the level, for looking at a section without replaying it.
-	const startTile = Number(new URLSearchParams(location.search).get("x"));
+	const query = new URLSearchParams(location.search);
+	const startTile = Number(query.get("x"));
 	if (Number.isFinite(startTile) && startTile > 0) level.spawn = { ...level.spawn, x: startTile };
 	let world: World = createWorld(level);
 	let state: GameState = createState();
-	const render = createRenderer(canvas);
+	// shortcut: ?theme=stocznia previews the second backdrop until the generator picks themes in phase 10
+	const render = createRenderer(
+		canvas,
+		query.get("theme") === "stocznia" ? "stocznia" : "zlomowisko",
+	);
 
 	const onKey = (down: boolean) => (e: KeyboardEvent) => {
 		if (down && state.status === "over" && e.code === "Enter") {

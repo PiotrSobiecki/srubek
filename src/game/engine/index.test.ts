@@ -397,3 +397,25 @@ describe("feedback for the player", () => {
 		expect(world.effects.some((e) => e.kind === "dust")).toBe(true);
 	});
 });
+
+describe("press tempo", () => {
+	it("drops sooner when the level's tempo is shorter", () => {
+		const firstDrop = (tempo: number): number => {
+			const level = levelFromRows([
+				"....====....",
+				"....^.......",
+				"............",
+				"..P.........",
+				"############",
+			]);
+			level.tempo = tempo;
+			const world = createWorld(level);
+			for (let i = 0; i < 400; i++) {
+				step(world, IDLE);
+				if (world.presses[0]?.phase === "drop") return i;
+			}
+			return 400;
+		};
+		expect(firstDrop(0.5)).toBeLessThan(firstDrop(1));
+	});
+});

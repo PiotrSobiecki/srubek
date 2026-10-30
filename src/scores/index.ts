@@ -12,7 +12,7 @@ const BOARD_SIZE = 10;
 const ScoreInput = z.object({
 	nick: z.string().trim().min(1).max(NICK_MAX),
 	points: z.number().int().min(0),
-	level: z.number().int().min(1).max(10_000),
+	level: z.number().int().min(1).max(1000),
 });
 
 export type ScoreInput = z.infer<typeof ScoreInput>;

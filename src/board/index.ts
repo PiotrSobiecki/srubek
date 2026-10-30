@@ -28,11 +28,6 @@ export interface Board {
 	hide(): void;
 }
 
-function levelReached(): number {
-	// shortcut: one level until the generator counts them in phase 10
-	return 1;
-}
-
 export function mountBoard(el: BoardElements): Board {
 	let pending: GameState | undefined;
 	el.nick.maxLength = NICK_MAX;
@@ -66,7 +61,7 @@ export function mountBoard(el: BoardElements): Board {
 		const body = {
 			nick: el.nick.value,
 			points: totalPoints(pending),
-			level: levelReached(),
+			level: pending.level,
 		};
 		el.note.textContent = "Zapisuję…";
 		const res = await fetch("/api/scores", {

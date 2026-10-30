@@ -14,7 +14,7 @@ import {
 	VIEW_W,
 	type World,
 } from "@/game/engine";
-import { type Level, type PickupKind, TILE } from "@/game/level";
+import { type Level, type PickupKind, type Theme, TILE } from "@/game/level";
 import { BATTERY_MAX, type GameState, totalPoints } from "@/game/state";
 
 const SCALE = 2;
@@ -387,8 +387,6 @@ function bakeSea(): HTMLCanvasElement {
 	return c;
 }
 
-export type Theme = "zlomowisko" | "stocznia";
-
 function bakeBackdrop(theme: Theme): Backdrop {
 	if (theme === "stocznia") {
 		return {
@@ -727,6 +725,25 @@ function drawCell(ctx: Ctx, cx: number, cy: number, frame: number): void {
 	ctx.fillRect(cx - 2.2, cy + 2.2, 4.4, 2);
 }
 
+function drawLife(ctx: Ctx, cx: number, cy: number, frame: number): void {
+	const pulse = 1 + Math.sin(frame / 7) * 0.12;
+	glow(ctx, cx, cy, 12, "rgba(255,90,90,A)", 0.5);
+	ctx.save();
+	ctx.translate(cx, cy + 1);
+	ctx.scale(pulse, pulse);
+	ctx.beginPath();
+	ctx.moveTo(0, 6);
+	ctx.bezierCurveTo(-8, 0, -4, -7, 0, -3);
+	ctx.bezierCurveTo(4, -7, 8, 0, 0, 6);
+	const g = ctx.createRadialGradient(-2, -3, 1, 0, 0, 8);
+	g.addColorStop(0, "#ffb3b3");
+	g.addColorStop(1, "#c81e1e");
+	ctx.fillStyle = g;
+	ctx.fill();
+	outline(ctx, 0.7);
+	ctx.restore();
+}
+
 function drawPickup(
 	ctx: Ctx,
 	kind: PickupKind,
@@ -747,6 +764,9 @@ function drawPickup(
 			break;
 		case "cell":
 			drawCell(ctx, cx, cy, frame + salt);
+			break;
+		case "life":
+			drawLife(ctx, cx, cy, frame + salt);
 			break;
 	}
 }
@@ -1151,7 +1171,7 @@ function drawCharger(ctx: Ctx, x: number, y: number, frame: number): void {
 // ── hud ──────────────────────────────────────────────────────────────
 
 function drawHud(ctx: Ctx, state: GameState, frame: number): void {
-	rounded(ctx, 5, 5, 150, 18, 6);
+	rounded(ctx, 5, 5, 196, 18, 6);
 	ctx.fillStyle = "rgba(10,8,20,0.55)";
 	ctx.fill();
 	ctx.strokeStyle = "rgba(255,255,255,0.18)";
@@ -1167,7 +1187,8 @@ function drawHud(ctx: Ctx, state: GameState, frame: number): void {
 	}
 	ctx.fillStyle = "#9aa3ad";
 	ctx.fillRect(100, 12.5, 2, 3);
-	for (let i = 0; i < state.lives; i++) {
+	fancyText(ctx, `POZ ${state.level}`, 160, 14.5, 11);
+	for (let i = 0; i < Math.min(state.lives, 4); i++) {
 		const hx = 110 + i * 11;
 		ctx.fillStyle = "#ff5a5a";
 		ctx.beginPath();
@@ -1185,14 +1206,7 @@ function drawHud(ctx: Ctx, state: GameState, frame: number): void {
 function drawOverlay(ctx: Ctx, state: GameState): void {
 	ctx.fillStyle = "rgba(5,4,12,0.62)";
 	ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-	fancyText(
-		ctx,
-		state.status === "over" ? "KONIEC GRY" : "WYGRANA!",
-		VIEW_W / 2,
-		VIEW_H / 2 - 24,
-		40,
-		"center",
-	);
+	fancyText(ctx, "KONIEC GRY", VIEW_W / 2, VIEW_H / 2 - 24, 40, "center");
 	fancyText(ctx, `wynik ${totalPoints(state)}`, VIEW_W / 2, VIEW_H / 2 + 8, 18, "center");
 	fancyText(ctx, "Enter: jeszcze raz", VIEW_W / 2, VIEW_H / 2 + 30, 14, "center");
 }
@@ -1337,12 +1351,20 @@ function drawActors(ctx: Ctx, world: World, camera: number): void {
 
 export type Renderer = (world: World, state: GameState) => void;
 
-export function createRenderer(canvas: HTMLCanvasElement, theme: Theme = "zlomowisko"): Renderer {
+export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 	canvas.width = VIEW_W * SCALE;
 	canvas.height = VIEW_H * SCALE;
 	const ctx = canvas.getContext("2d");
 	if (!ctx) return () => {};
-	const backdrop = bakeBackdrop(theme);
+	const backdrops = new Map<Theme, Backdrop>();
+	const backdropFor = (theme: Theme): Backdrop => {
+		let b = backdrops.get(theme);
+		if (!b) {
+			b = bakeBackdrop(theme);
+			backdrops.set(theme, b);
+		}
+		return b;
+	};
 	const textures = loadTextures();
 	return (world, state) => {
 		const camera = Math.round(world.camera);
@@ -1351,7 +1373,7 @@ export function createRenderer(canvas: HTMLCanvasElement, theme: Theme = "zlomow
 		const sx = shake ? (noise(world.frame, 1, 97) - 0.5) * shake : 0;
 		const sy = shake ? (noise(world.frame, 2, 97) - 0.5) * shake : 0;
 		ctx.setTransform(SCALE, 0, 0, SCALE, sx * SCALE, sy * SCALE);
-		drawBackground(ctx, backdrop, camera, world.frame);
+		drawBackground(ctx, backdropFor(world.level.theme), camera, world.frame);
 		drawTiles(ctx, textures, world.level, camera);
 		drawActors(ctx, world, camera);
 		// Vignette, so the edges fall off like a lit set.
@@ -1369,6 +1391,6 @@ export function createRenderer(canvas: HTMLCanvasElement, theme: Theme = "zlomow
 		ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 		drawHud(ctx, state, world.frame);
 		if (world.boss?.alive) drawBossBar(ctx, world.boss);
-		if (state.status === "over" || state.status === "won") drawOverlay(ctx, state);
+		if (state.status === "over") drawOverlay(ctx, state);
 	};
 }

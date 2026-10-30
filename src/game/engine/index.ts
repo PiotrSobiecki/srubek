@@ -209,7 +209,7 @@ export function createWorld(level: Level, boss?: Boss): World {
 			floorY: floorBelow(level, p.x, p.y) - TILE,
 			phase: "wait",
 			// Staggered so a corridor of presses never drops in unison.
-			timer: PHYSICS.pressWait - ((i * 23) % PHYSICS.pressWait),
+			timer: Math.round(PHYSICS.pressWait * level.tempo) - ((i * 23) % PHYSICS.pressWait),
 		})),
 		effects: [],
 		camera: 0,
@@ -474,7 +474,7 @@ function touchDrones(world: World, events: GameEvent[]): void {
 	}
 }
 
-function movePress(p: Press): void {
+function movePress(p: Press, tempo: number): void {
 	const c = PHYSICS;
 	switch (p.phase) {
 		case "wait":
@@ -494,7 +494,7 @@ function movePress(p: Press): void {
 			p.y = Math.max(p.topY, p.y - c.pressRise);
 			if (p.y === p.topY) {
 				p.phase = "wait";
-				p.timer = c.pressWait;
+				p.timer = Math.round(c.pressWait * tempo);
 			}
 			return;
 	}
@@ -503,7 +503,7 @@ function movePress(p: Press): void {
 function touchPresses(world: World, events: GameEvent[]): void {
 	const p = world.player;
 	for (const press of world.presses) {
-		movePress(press);
+		movePress(press, world.level.tempo);
 		if (press.phase === "drop" && overlaps(p, press.x, press.y, TILE, TILE)) {
 			hurt(p, press.x + TILE / 2, events);
 		}

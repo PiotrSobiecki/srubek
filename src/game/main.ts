@@ -3,7 +3,7 @@
 import { createAudio } from "@/game/audio";
 import { createBoss, makeBoss } from "@/game/boss";
 import { createWorld, type Input, step, type World } from "@/game/engine";
-import { buildArena, buildLevel } from "@/game/level";
+import { buildArena, buildLevel, type Level } from "@/game/level";
 import { createRenderer } from "@/game/render";
 import { applyEvents, createState, type GameState } from "@/game/state";
 
@@ -33,27 +33,30 @@ export interface Hooks {
 
 export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): void {
 	const input: Input = { left: false, right: false, jump: false, magnet: false, throw: false };
-	const level = buildLevel(1);
-	// ?x=<tile> starts Śrubek deeper in the level, for looking at a section without replaying it.
+	// ?level=<n> and ?x=<tile> open a later level or section for a look without replaying.
 	const query = new URLSearchParams(location.search);
+	const startLevel = Math.max(1, Math.floor(Number(query.get("level")) || 1));
 	const startTile = Number(query.get("x"));
-	if (Number.isFinite(startTile) && startTile > 0) level.spawn = { ...level.spawn, x: startTile };
+	const freshLevel = (n: number): Level => {
+		const built = buildLevel(n);
+		if (n === startLevel && Number.isFinite(startTile) && startTile > 0) {
+			built.spawn = { ...built.spawn, x: startTile };
+		}
+		return built;
+	};
+	let level = freshLevel(startLevel);
 	let world: World = createWorld(level);
-	let state: GameState = createState();
-	// shortcut: ?theme=stocznia previews the second backdrop until the generator picks themes in phase 10
-	const render = createRenderer(
-		canvas,
-		query.get("theme") === "stocznia" ? "stocznia" : "zlomowisko",
-	);
-
-	// shortcut: one track per theme until the generator assigns music per level in phase 10
-	const audio = createAudio(query.get("theme") === "stocznia" ? 2 : 1);
+	let state: GameState = { ...createState(), level: startLevel };
+	const render = createRenderer(canvas);
+	const audio = createAudio(((startLevel - 1) % 3) + 1);
 	const onShortcut = (code: string): void => {
 		audio.unlock();
 		if (code === "KeyM") audio.toggleMute();
-		if (code === "Enter" && (state.status === "over" || state.status === "won")) {
+		if (code === "Enter" && state.status === "over") {
+			level = freshLevel(1);
 			world = createWorld(level);
 			state = createState();
+			audio.setTrack(1);
 			hooks.onRestart?.();
 		}
 	};
@@ -73,19 +76,24 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): void {
 	window.addEventListener("keyup", onKey(false));
 
 	const arena = buildArena();
-	const enterArena = (): World =>
-		createWorld(arena, createBoss(makeBoss("prasa", "opad", "rdzen", 1), arena.widthTiles));
+	const enterArena = (n: number): World =>
+		createWorld(arena, createBoss(makeBoss("prasa", "opad", "rdzen", n), arena.widthTiles));
 
 	/** Picks the world a new state calls for: the arena after the gate, a fresh one after a lost life. */
 	const worldFor = (prev: GameState, next: GameState): World => {
-		if (next.status === "boss" && prev.status === "playing") return enterArena();
+		if (next.level !== prev.level) {
+			level = freshLevel(next.level);
+			audio.setTrack(next.level);
+			return createWorld(level);
+		}
+		if (next.status === "boss" && prev.status === "playing") return enterArena(next.level);
 		if (next.respawns !== prev.respawns)
-			return next.status === "boss" ? enterArena() : createWorld(level);
+			return next.status === "boss" ? enterArena(next.level) : createWorld(level);
 		return world;
 	};
 
 	const tick = (): void => {
-		if (state.status === "over" || state.status === "won") return;
+		if (state.status === "over") return;
 		const events = step(world, input);
 		audio.react(events);
 		const next = applyEvents(state, events);
@@ -93,7 +101,7 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): void {
 		released.clear();
 		world = worldFor(state, next);
 		// The early return above means any end status here is a fresh one.
-		if (next.status === "over" || next.status === "won") hooks.onEnd?.(next);
+		if (next.status === "over") hooks.onEnd?.(next);
 		state = next;
 	};
 

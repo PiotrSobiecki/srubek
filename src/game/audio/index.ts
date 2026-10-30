@@ -19,12 +19,15 @@ type SoundName =
 	| "pull"
 	| "throw"
 	| "charge"
-	| "gate";
+	| "gate"
+	| "life";
 
 export interface Audio {
 	unlock(): void;
 	play(name: SoundName): void;
 	toggleMute(): boolean;
+	/** Switch the background track (1..3) and keep playing if already unlocked. */
+	setTrack(track: number): void;
 	/** Plays whatever the frame's events call for. */
 	react(events: GameEvent[]): void;
 }
@@ -104,6 +107,11 @@ const SOUNDS: Record<SoundName, (ctx: AudioContext, out: GainNode) => void> = {
 		tone(c, o, { type: "triangle", from: 440, to: 470, dur: 0.3, gain: 0.25 });
 		tone(c, o, { type: "triangle", from: 880, to: 940, dur: 0.3, gain: 0.12 });
 	},
+	life: (c, o) => {
+		for (const [i, f] of [659, 784, 988, 1319, 1568].entries()) {
+			tone(c, o, { type: "square", from: f, to: f, dur: 0.12, delay: i * 0.08, gain: 0.2 });
+		}
+	},
 	gate: (c, o) => {
 		for (const [i, f] of [523, 659, 784, 1047].entries()) {
 			tone(c, o, { type: "triangle", from: f, to: f, dur: 0.5, delay: i * 0.12, gain: 0.3 });
@@ -127,7 +135,7 @@ const BY_EVENT: Partial<Record<GameEvent["type"], SoundName>> = {
 };
 
 /** `track` picks /music/level<n>.mp3; the pack has 1..3. */
-export function createAudio(track: 1 | 2 | 3 = 1): Audio {
+export function createAudio(track = 1): Audio {
 	let ctx: AudioContext | undefined;
 	let out: GainNode | undefined;
 	let muted = false;
@@ -147,7 +155,8 @@ export function createAudio(track: 1 | 2 | 3 = 1): Audio {
 	};
 
 	// Background track: a looping <audio> element, started with the context on the first key.
-	const music = new window.Audio(`/music/level${track}.mp3`);
+	const trackFile = (n: number): string => `/music/level${((Math.round(n) - 1) % 3) + 1}.mp3`;
+	const music = new window.Audio(trackFile(track));
 	music.loop = true;
 	music.volume = MUSIC;
 	music.preload = "auto";
@@ -162,6 +171,12 @@ export function createAudio(track: 1 | 2 | 3 = 1): Audio {
 			if (!muted) music.play().catch(() => undefined);
 		},
 		play,
+		setTrack(next) {
+			const wanted = trackFile(next);
+			if (music.src.endsWith(wanted)) return;
+			music.src = wanted;
+			if (ctx && !muted) music.play().catch(() => undefined);
+		},
 		toggleMute() {
 			muted = !muted;
 			if (muted) music.pause();

@@ -79,19 +79,26 @@ describe("battery and lives", () => {
 		expect(s.levelPoints).toBe(NUT_POINTS);
 	});
 
-	it("boss hits score and the final blow wins the run", () => {
+	it("boss hits score and the final blow banks the level and opens the next", () => {
 		let s = applyEvents(createState(), [{ type: "gate" }, { type: "bossHit" }]);
 		expect(s.status).toBe("boss");
 		expect(s.levelPoints).toBe(BOSS_HIT_POINTS);
 		s = applyEvents(s, [{ type: "bossDown" }]);
-		expect(s.status).toBe("won");
-		expect(s.levelPoints).toBe(BOSS_HIT_POINTS + BOSS_POINTS);
+		expect(s.status).toBe("playing");
+		expect(s.level).toBe(2);
+		expect(s.levelPoints).toBe(0);
+		expect(totalPoints(s)).toBe(BOSS_HIT_POINTS + BOSS_POINTS);
 	});
 
 	it("losing a life in the arena stays in the arena", () => {
 		const s = applyEvents(createState(), [{ type: "gate" }, { type: "fall" }]);
 		expect(s.status).toBe("boss");
 		expect(s.lives).toBe(LIVES_START - 1);
+	});
+
+	it("an extra life pickup adds a life", () => {
+		const s = applyEvents(createState(), [{ type: "pickup", kind: "life" }]);
+		expect(s.lives).toBe(LIVES_START + 1);
 	});
 
 	it("keeps banked points from earlier levels through a lost life", () => {
@@ -120,6 +127,7 @@ describe("battery and lives", () => {
 			battery: BATTERY_MAX,
 			lives: LIVES_START,
 			respawns: 0,
+			level: 1,
 			status: "playing",
 		});
 	});

@@ -22,8 +22,10 @@ export interface GameState {
 	lives: number;
 	/** Bumps each time a life is lost, so the caller knows to respawn. */
 	respawns: number;
-	/** `boss` means the gate was reached; the arena arrives in phase 7. */
-	status: "playing" | "boss" | "won" | "over";
+	/** Level in progress, counted from 1 and never capped. */
+	level: number;
+	/** `boss` means the gate was reached and the arena is on. */
+	status: "playing" | "boss" | "over";
 }
 
 export function createState(): GameState {
@@ -33,6 +35,7 @@ export function createState(): GameState {
 		battery: BATTERY_MAX,
 		lives: LIVES_START,
 		respawns: 0,
+		level: 1,
 		status: "playing",
 	};
 }
@@ -63,6 +66,8 @@ function pickUp(state: GameState, kind: PickupKind): GameState {
 			return { ...state, levelPoints: state.levelPoints + GEAR_POINTS };
 		case "cell":
 			return { ...state, battery: Math.min(BATTERY_MAX, state.battery + 1) };
+		case "life":
+			return { ...state, lives: state.lives + 1 };
 	}
 }
 
@@ -83,7 +88,15 @@ function applyEvent(state: GameState, event: GameEvent): GameState {
 		case "bossHit":
 			return { ...state, levelPoints: state.levelPoints + BOSS_HIT_POINTS };
 		case "bossDown":
-			return { ...state, levelPoints: state.levelPoints + BOSS_POINTS, status: "won" };
+			// The level is banked and the next one starts fresh.
+			return {
+				...state,
+				points: state.points + state.levelPoints + BOSS_POINTS,
+				levelPoints: 0,
+				level: state.level + 1,
+				battery: BATTERY_MAX,
+				status: "playing",
+			};
 		case "slam":
 		case "jump":
 		case "airjump":

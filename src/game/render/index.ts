@@ -898,21 +898,27 @@ function drawHat(ctx: Ctx, skin: Skin, frame: number, legPhase: number): void {
 			ctx.fillRect(-7, -22.5, 14, 2.2);
 			sphere(ctx, 0, -31 + Math.sin(frame / 8) * 0.5, 2, "#ffffff", "#c9d2da");
 			return;
-		case "korona":
+		case "korona": {
+			// A gold band with five points and three jewels; one clean outline around the whole shape.
 			ctx.beginPath();
-			ctx.moveTo(-6, -22);
-			for (let i = 0; i < 4; i++) {
-				ctx.lineTo(-6 + i * 4, -28);
-				ctx.lineTo(-4 + i * 4, -24);
+			ctx.moveTo(-6.5, -21);
+			ctx.lineTo(-6.5, -25);
+			for (let i = 0; i < 5; i++) {
+				const x0 = -6.5 + i * 3.25;
+				ctx.lineTo(x0 + 1.6, -29.5);
+				ctx.lineTo(x0 + 3.25, -25);
 			}
-			ctx.lineTo(6, -28);
-			ctx.lineTo(6, -22);
+			ctx.lineTo(6.5, -21);
 			ctx.closePath();
-			ctx.fillStyle = shade(ctx, -28, 6, "#ffe58a", "#b8860b");
+			ctx.fillStyle = shade(ctx, -29.5, 8.5, "#ffe58a", "#c99a16");
 			ctx.fill();
-			outline(ctx, 0.8);
-			for (const jx of [-4, 0, 4]) sphere(ctx, jx, -24.5, 0.9, tint(accent, 0.5), accent);
+			ctx.lineJoin = "round";
+			outline(ctx, 0.7);
+			ctx.fillStyle = "rgba(255,255,255,0.35)";
+			ctx.fillRect(-6, -24.5, 12, 1);
+			for (const jx of [-3.5, 0, 3.5]) sphere(ctx, jx, -23, 0.9, tint(accent, 0.5), accent);
 			return;
+		}
 		case "cylinder":
 			ctx.fillStyle = shade(ctx, -34, 12, tint(accent, -0.5), tint(accent, -0.8));
 			ctx.fillRect(-4.5, -33, 9, 11);

@@ -1,3 +1,10 @@
+## [1.25.1](https://github.com/PiotrSobiecki/srubek/compare/v1.25.0...v1.25.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* korona symetryczna, trzy zęby z kulkami na obręczy z klejnotami ([4344c16](https://github.com/PiotrSobiecki/srubek/commit/4344c16feabf42ef631b555703cb040822701a95))
+
 # [1.25.0](https://github.com/PiotrSobiecki/srubek/compare/v1.24.2...v1.25.0) (2026-10-30)
 
 

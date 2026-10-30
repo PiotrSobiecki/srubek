@@ -75,6 +75,7 @@ export function mountBoard(el: BoardElements): Board {
 		});
 		if (res.ok) {
 			pending = undefined;
+			el.note.textContent = "";
 			el.form.hidden = true;
 			el.after.hidden = false;
 			// Focus leaves the input so Enter now restarts the game.

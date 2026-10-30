@@ -3,10 +3,20 @@ import Layout from "@/layouts/Layout.astro";
 ---
 
 <Layout title="Śrubek" description="Platformówka na złomowisku">
-	<main class="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
-		<h1 class="title text-5xl tracking-wider">ŚRUBEK</h1>
-		<canvas id="game" width="960" height="512" class="w-full max-w-[960px] rounded-lg bg-neutral-900 shadow-2xl" aria-label="Gra Śrubek"></canvas>
-		<p class="hint max-w-[960px] text-center text-base tracking-wide text-amber-200/80">strzałki / WASD: jazda · spacja: skok (przytrzymaj, by skoczyć wyżej; w locie raz jeszcze) · C: magnes zbiera złom (do 10 szt.) · X: rzut złomem · Z: mega kula (za 10 śrub) · M: dźwięk</p>
+	<main class="flex min-h-screen flex-col items-center justify-center gap-3 p-2 sm:p-4">
+		<h1 class="title text-4xl tracking-wider sm:text-5xl">ŚRUBEK</h1>
+
+		<div id="stage" class="relative w-full max-w-[960px]">
+			<canvas id="game" width="960" height="512" class="block w-full rounded-lg bg-neutral-900 shadow-2xl" aria-label="Gra Śrubek"></canvas>
+			<div id="pad" hidden class="pad"></div>
+		</div>
+
+		<div class="flex flex-wrap justify-center gap-2">
+			<button id="fullscreen" type="button" class="hint rounded border border-amber-300/40 bg-neutral-900 px-3 py-1 text-base tracking-wide text-amber-100 hover:border-amber-300">Pełny ekran</button>
+			<button id="toggle-pad" type="button" class="hint rounded border border-amber-300/40 bg-neutral-900 px-3 py-1 text-base tracking-wide text-amber-100 hover:border-amber-300">Przyciski na ekranie</button>
+		</div>
+
+		<p class="hint max-w-[960px] text-center text-sm tracking-wide text-amber-200/80 sm:text-base">strzałki / WASD: jazda · spacja: skok (przytrzymaj, by skoczyć wyżej; w locie raz jeszcze) · C: magnes zbiera złom (do 10 szt.) · X: rzut złomem · Z: mega kula (za 10 śrub) · M: dźwięk · mysz: lewy skok, prawy rzut, środkowy magnes</p>
 	</main>
 
 	<div id="score-modal" hidden class="fixed inset-0 z-10 flex items-center justify-center bg-black/60 p-4">
@@ -43,31 +53,96 @@ import Layout from "@/layouts/Layout.astro";
 	[hidden] {
 		display: none !important;
 	}
+	#game {
+		touch-action: none;
+	}
+
+	/* Fullscreen: black stage, canvas letterboxed to the screen, pad on top. */
+	#stage:fullscreen {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #000;
+	}
+	#stage:fullscreen #game {
+		width: min(100vw, calc(100vh * 960 / 512));
+		height: auto;
+		border-radius: 0;
+	}
+
+	/* On-screen pad: movement bottom-left, actions bottom-right. */
+	.pad {
+		position: absolute;
+		inset: auto 0 0 0;
+		display: grid;
+		grid-template-areas: "l r . z c j" "l r . . x j";
+		grid-template-columns: 3.5rem 3.5rem 1fr 3rem 3rem 3.5rem;
+		grid-template-rows: 3rem 3rem;
+		gap: 0.4rem;
+		padding: 0.6rem;
+		pointer-events: none;
+	}
+	.pad-btn {
+		pointer-events: auto;
+		touch-action: none;
+		user-select: none;
+		-webkit-user-select: none;
+		border: 2px solid rgba(255, 210, 120, 0.55);
+		border-radius: 0.6rem;
+		background: rgba(20, 16, 30, 0.55);
+		color: #ffe9a8;
+		font-family: "Bangers", "Impact", sans-serif;
+		font-size: 1.4rem;
+		letter-spacing: 0.05em;
+		backdrop-filter: blur(2px);
+	}
+	.pad-btn.is-down {
+		background: rgba(255, 180, 70, 0.75);
+		color: #1b1a22;
+	}
 </style>
 
 <script>
 	import { mountBoard } from "@/board";
+	import { mountFullscreen, mountMouse, mountPad, touchDevice } from "@/controls";
 	import { type Game, start } from "@/game/main";
 
 	const canvas = document.getElementById("game");
+	const stage = document.getElementById("stage");
+	const pad = document.getElementById("pad");
+	const fullscreen = document.getElementById("fullscreen");
+	const togglePad = document.getElementById("toggle-pad");
 	const modal = document.getElementById("score-modal");
 	const form = document.getElementById("score-form");
 	const nick = document.getElementById("score-nick");
 	const note = document.getElementById("score-note");
 
 	if (
+		canvas instanceof HTMLCanvasElement &&
+		stage instanceof HTMLElement &&
+		pad instanceof HTMLElement &&
+		fullscreen instanceof HTMLButtonElement &&
+		togglePad instanceof HTMLButtonElement &&
 		modal instanceof HTMLElement &&
 		form instanceof HTMLFormElement &&
 		nick instanceof HTMLInputElement &&
-		note instanceof HTMLElement &&
-		canvas instanceof HTMLCanvasElement
+		note instanceof HTMLElement
 	) {
 		let game: Game | undefined;
 		const board = mountBoard({ modal, form, nick, note }, (rows) => game?.setBoard(rows));
+		mountFullscreen(stage, fullscreen);
 		// The canvas draws its own text, so the font must be in before the first frame.
 		document.fonts.load("20px Bangers").finally(() => {
 			game = start(canvas, { onEnd: (state) => board.offer(state), onRestart: () => board.hide() });
 			void board.refresh();
+			const showPad = mountPad(pad, game);
+			let padOn = touchDevice();
+			showPad(padOn);
+			togglePad.addEventListener("click", () => {
+				padOn = !padOn;
+				showPad(padOn);
+			});
+			mountMouse(canvas, game);
 		});
 	}
 </script>

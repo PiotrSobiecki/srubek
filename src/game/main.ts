@@ -43,6 +43,10 @@ export interface Hooks {
 export interface Game {
 	/** The page hands in the leaderboard; the end screen draws it. */
 	setBoard(rows: readonly BoardRow[]): void;
+	/** Press or release a control from outside the keyboard (touch pad, mouse). */
+	press(key: keyof Input, down: boolean): void;
+	/** What Enter does: restart after a loss, move on after a boss. */
+	enter(): void;
 }
 
 export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
@@ -87,18 +91,21 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 			hooks.onRestart?.();
 		}
 	};
+	const released = new Set<keyof Input>();
+	// A release waits for the next step, so even a tap shorter than a frame registers.
+	const press = (key: keyof Input, down: boolean): void => {
+		if (down) input[key] = true;
+		else released.add(key);
+	};
 	const onKey = (down: boolean) => (e: KeyboardEvent) => {
 		// Typing a nick into the form must not steer the game.
 		if (e.target instanceof HTMLInputElement) return;
 		if (down) onShortcut(e.code);
 		const key = KEYS[e.code];
 		if (!key) return;
-		// A release waits for the next step, so even a tap shorter than a frame registers.
-		if (down) input[key] = true;
-		else released.add(key);
+		press(key, down);
 		e.preventDefault();
 	};
-	const released = new Set<keyof Input>();
 	window.addEventListener("keydown", onKey(true));
 	window.addEventListener("keyup", onKey(false));
 
@@ -170,6 +177,10 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 	return {
 		setBoard(rows) {
 			board = rows;
+		},
+		press,
+		enter() {
+			onShortcut("Enter");
 		},
 	};
 }

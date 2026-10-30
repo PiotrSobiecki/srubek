@@ -207,7 +207,7 @@ importers:
         specifier: ^6.31.0
         version: 6.31.0
       node:
-        specifier: runtime:24.22.2
+        specifier: runtime:^24.0.0
         version: runtime:24.22.2
       semantic-release:
         specifier: ^25.0.8

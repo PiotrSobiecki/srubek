@@ -17,7 +17,8 @@ export interface GameState {
 	lives: number;
 	/** Bumps each time a life is lost, so the caller knows to respawn. */
 	respawns: number;
-	status: "playing" | "over";
+	/** `boss` means the gate was reached; the arena arrives in phase 7. */
+	status: "playing" | "boss" | "over";
 }
 
 export function createState(): GameState {
@@ -59,6 +60,8 @@ function applyEvent(state: GameState, event: GameEvent): GameState {
 			return { ...state, battery: BATTERY_MAX };
 		case "fall":
 			return loseLife(state);
+		case "gate":
+			return { ...state, status: "boss" };
 		case "hit": {
 			const battery = state.battery - 1;
 			return battery > 0 ? { ...state, battery } : loseLife(state);

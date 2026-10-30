@@ -54,6 +54,12 @@ describe("battery and lives", () => {
 		expect(s.respawns).toBe(1);
 	});
 
+	it("the gate switches to the boss and freezes scoring", () => {
+		const s = applyEvents(createState(), [{ type: "gate" }, { type: "nut" }]);
+		expect(s.status).toBe("boss");
+		expect(s.levelPoints).toBe(0);
+	});
+
 	it("keeps banked points from earlier levels through a lost life", () => {
 		const s = applyEvents(
 			{ ...createState(), points: 300 },

@@ -5,6 +5,7 @@
  *   `#` scrap ground   `=` metal platform   `o` nut   `P` spawn   `.` air
  *   `v` drone, patrolling the run of `-` it sits in   `c` charger
  *   `s` scrap the magnet can throw   `w` dog-machine walking its platform
+ *   `^` press resting under a ceiling, dropping to the floor below   `g` factory gate
  */
 
 export const TILE = 16;
@@ -21,7 +22,7 @@ interface DroneSpec extends Vec {
 	x1: number;
 }
 
-export type SegmentName = "nuts" | "drones" | "gap" | "dog";
+export type SegmentName = "nuts" | "drones" | "gap" | "dog" | "presses";
 
 export interface Level {
 	rows: string[];
@@ -32,6 +33,8 @@ export interface Level {
 	chargers: Vec[];
 	scraps: Vec[];
 	dogs: Vec[];
+	presses: Vec[];
+	gates: Vec[];
 	segments: SegmentName[];
 }
 
@@ -108,6 +111,24 @@ const SEGMENTS: Record<SegmentName, string[]> = {
 		"############################################################",
 		"############################################################",
 	],
+	presses: [
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"........=================================...................",
+		"..........^......^......^......^......^....................#",
+		"...........................................................#",
+		"...........................................................#",
+		".............o......o......o......o.............c..........#",
+		"...................................................=====g..#",
+		"############################################################",
+		"############################################################",
+	],
 };
 
 function trackSpan(row: string, x: number): [number, number] {
@@ -126,8 +147,17 @@ export function levelFromRows(rows: string[], segments: SegmentName[] = []): Lev
 	const chargers: Vec[] = [];
 	const scraps: Vec[] = [];
 	const dogs: Vec[] = [];
+	const presses: Vec[] = [];
+	const gates: Vec[] = [];
 	let spawn: Vec = { x: 1, y: 1 };
-	const lists: Record<string, Vec[]> = { o: nuts, c: chargers, s: scraps, w: dogs };
+	const lists: Record<string, Vec[]> = {
+		o: nuts,
+		c: chargers,
+		s: scraps,
+		w: dogs,
+		"^": presses,
+		g: gates,
+	};
 	rows.forEach((row, y) => {
 		for (let x = 0; x < row.length; x++) {
 			const c = row[x] ?? ".";
@@ -148,6 +178,8 @@ export function levelFromRows(rows: string[], segments: SegmentName[] = []): Lev
 		chargers,
 		scraps,
 		dogs,
+		presses,
+		gates,
 		segments,
 	};
 }
@@ -161,7 +193,7 @@ export function isSolid(level: Level, tx: number, ty: number): boolean {
 export function buildLevel(n: number): Level {
 	// shortcut: only level 1 exists, generator arrives in phase 10
 	if (n !== 1) return buildLevel(1);
-	const names: SegmentName[] = ["nuts", "drones", "gap", "dog"];
+	const names: SegmentName[] = ["nuts", "drones", "gap", "dog", "presses"];
 	const rows = Array.from({ length: ROWS }, (_, y) =>
 		names.map((name) => SEGMENTS[name][y] ?? "").join(""),
 	);

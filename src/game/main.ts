@@ -38,7 +38,7 @@ export function start(canvas: HTMLCanvasElement): void {
 	);
 
 	const onKey = (down: boolean) => (e: KeyboardEvent) => {
-		if (down && state.status === "over" && e.code === "Enter") {
+		if (down && state.status !== "playing" && e.code === "Enter") {
 			world = createWorld(level);
 			state = createState();
 		}
@@ -54,7 +54,7 @@ export function start(canvas: HTMLCanvasElement): void {
 	window.addEventListener("keyup", onKey(false));
 
 	const tick = (): void => {
-		if (state.status === "over") return;
+		if (state.status !== "playing") return;
 		const next = applyEvents(state, step(world, input));
 		for (const key of released) input[key] = false;
 		released.clear();

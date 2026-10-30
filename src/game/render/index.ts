@@ -4,7 +4,7 @@
  * 960x512, shapes get gradients, rim lights and outlines, surfaces get texture.
  */
 
-import { type Player, VIEW_H, VIEW_W, type World } from "@/game/engine";
+import { type Player, type Press, VIEW_H, VIEW_W, type World } from "@/game/engine";
 import { type Level, TILE } from "@/game/level";
 import { BATTERY_MAX, type GameState, totalPoints } from "@/game/state";
 
@@ -938,9 +938,59 @@ function drawOverlay(ctx: Ctx, state: GameState): void {
 
 // ── renderer ─────────────────────────────────────────────────────────
 
+function drawPress(ctx: Ctx, p: Press, camera: number): void {
+	const x = Math.round(p.x - camera);
+	const y = Math.round(p.y);
+	// Piston rod from the ceiling to the head.
+	ctx.fillStyle = shade(ctx, p.topY, y - p.topY + 6, "#aab3bc", "#4a535d");
+	ctx.fillRect(x + 6, p.topY, 4, y - p.topY + 6);
+	ctx.fillStyle = "rgba(255,255,255,0.4)";
+	ctx.fillRect(x + 6.5, p.topY, 1, y - p.topY + 6);
+	// Head: a heavy block with a rusted face plate and hazard stripes.
+	rounded(ctx, x, y + 4, TILE, 10, 1.5);
+	ctx.fillStyle = shade(ctx, y + 4, 10, "#c2ccd5", "#4a535d");
+	ctx.fill();
+	outline(ctx, 0.7);
+	rim(ctx, 0.4);
+	ctx.fillStyle = "#1b1a22";
+	ctx.fillRect(x, y + 12.5, TILE, 2.5);
+	for (let i = 0; i < 4; i++) {
+		ctx.fillStyle = "#e9c136";
+		ctx.fillRect(x + i * 4 + 0.5, y + 12.5, 2, 2.5);
+	}
+	if (p.phase === "drop") glow(ctx, x + 8, y + 15, 10, "rgba(255,120,60,A)", 0.35);
+}
+
+function drawGate(ctx: Ctx, x: number, y: number, frame: number): void {
+	// Two-tile steel door in a frame, with a lamp over it.
+	rounded(ctx, x - 1, y - 1, TILE + 2, 3 * TILE + 1, 2);
+	ctx.fillStyle = "#2a3036";
+	ctx.fill();
+	ctx.fillStyle = shade(ctx, y, 2 * TILE, "#8893a0", "#3a434d");
+	ctx.fillRect(x + 1, y + 1, TILE - 2, 3 * TILE - 2);
+	ctx.fillStyle = "#1b1a22";
+	ctx.fillRect(x + TILE / 2 - 0.5, y + 1, 1, 3 * TILE - 2);
+	for (const [rx, ry] of [
+		[3, 4],
+		[12, 4],
+		[3, 43],
+		[12, 43],
+	] as const) {
+		sphere(ctx, x + rx, y + ry, 1.2, "#ffffff", "#6f7a86");
+	}
+	ctx.fillStyle = "#e9c136";
+	ctx.fillRect(x + 2, y + 22, 5, 2);
+	ctx.fillRect(x + 9, y + 22, 5, 2);
+	const pulse = 0.5 + Math.sin(frame / 10) * 0.3;
+	glow(ctx, x + TILE / 2, y - 3, 12, "rgba(255,200,90,A)", pulse);
+	sphere(ctx, x + TILE / 2, y - 3, 2, "#fff0b0", "#d9901c");
+}
+
 function drawActors(ctx: Ctx, world: World, camera: number): void {
 	const frame = world.frame;
 	for (const c of world.level.chargers) drawCharger(ctx, c.x * TILE - camera, c.y * TILE, frame);
+	for (const g of world.level.gates) drawGate(ctx, g.x * TILE - camera, (g.y - 2) * TILE, frame);
+	for (const p of world.presses) drawPress(ctx, p, camera);
 	for (const nut of world.nuts) {
 		if (nut.taken) continue;
 		const bob = Math.sin((frame + nut.x * 7) / 12) * 1.5;

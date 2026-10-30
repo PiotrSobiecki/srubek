@@ -293,3 +293,63 @@ describe("magnet and dog-machine", () => {
 		}
 	});
 });
+
+describe("presses and the gate", () => {
+	const HALL = levelFromRows([
+		"....................",
+		"....................",
+		"....====............",
+		"....^...............",
+		"....................",
+		"....................",
+		"..P..............g..",
+		"####################",
+	]);
+
+	it("drop on a fixed cycle and come back up", () => {
+		const world = createWorld(HALL);
+		const press = world.presses[0];
+		if (!press) throw new Error("no press");
+		expect(press.floorY).toBe(6 * TILE);
+		const phases = new Set<string>();
+		let bottomAt = -1;
+		for (let i = 0; i < 400; i++) {
+			step(world, IDLE);
+			phases.add(press.phase);
+			if (press.y === press.floorY && bottomAt < 0) bottomAt = i;
+		}
+		expect([...phases].sort()).toEqual(["drop", "hold", "rise", "wait"]);
+		expect(bottomAt).toBeGreaterThan(0);
+		expect(press.y).toBeGreaterThanOrEqual(press.topY);
+	});
+
+	it("hurt only while dropping", () => {
+		const world = createWorld(HALL);
+		const press = world.presses[0];
+		if (!press) throw new Error("no press");
+		settle(world);
+		world.player.x = press.x + 2;
+		const hits = (frames: number) => {
+			const events = [];
+			for (let i = 0; i < frames; i++) events.push(...step(world, IDLE));
+			return events.filter((e) => e.type === "hit").length;
+		};
+		// Resting at the top: nothing.
+		expect(hits(10)).toBe(0);
+		// Through one full drop: exactly one hit (then the grace period).
+		expect(hits(120)).toBe(1);
+		// Parked at the bottom on top of Śrubek, then rising: still nothing new.
+		world.player.hurtLeft = 0;
+		press.phase = "hold";
+		press.y = press.floorY;
+		press.timer = 30;
+		expect(hits(30)).toBe(0);
+	});
+
+	it("the gate reports once Śrubek touches it", () => {
+		const world = createWorld(HALL);
+		const events = [];
+		for (let i = 0; i < 400; i++) events.push(...step(world, { ...IDLE, right: true }));
+		expect(events).toContainEqual({ type: "gate" });
+	});
+});

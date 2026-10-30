@@ -3,11 +3,13 @@ import { buildLevel, isSolid, levelFromRows, ROWS } from "./index";
 describe("buildLevel(1)", () => {
 	const level = buildLevel(1);
 
-	it("joins the nuts and drones segments", () => {
-		expect(level.segments).toEqual(["nuts", "drones", "gap", "dog"]);
+	it("joins the five segments of level 1", () => {
+		expect(level.segments).toEqual(["nuts", "drones", "gap", "dog", "presses"]);
+		expect(level.presses.length).toBeGreaterThanOrEqual(3);
+		expect(level.gates).toHaveLength(1);
+		expect(level.chargers.length).toBe(2);
 		expect(level.nuts.length).toBeGreaterThan(5);
 		expect(level.drones.length).toBeGreaterThanOrEqual(3);
-		expect(level.chargers).toHaveLength(1);
 	});
 
 	it("gives every drone a track wider than itself", () => {

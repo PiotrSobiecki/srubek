@@ -26,6 +26,11 @@ const PHYSICS = {
 	throwVx: 4,
 	throwVy: 0,
 	slideFriction: 0.05,
+	/** Press cycle, in frames and pixels per frame. */
+	pressWait: 70,
+	pressDrop: 5,
+	pressHold: 25,
+	pressRise: 1,
 	/** Frames of invulnerability after a hit. */
 	hurtFrames: 60,
 } as const;
@@ -92,6 +97,15 @@ interface Dog {
 	alive: boolean;
 }
 
+export interface Press {
+	x: number;
+	y: number;
+	topY: number;
+	floorY: number;
+	phase: "wait" | "drop" | "hold" | "rise";
+	timer: number;
+}
+
 export interface World {
 	level: Level;
 	player: Player;
@@ -99,6 +113,7 @@ export interface World {
 	drones: Drone[];
 	scraps: Scrap[];
 	dogs: Dog[];
+	presses: Press[];
 	camera: number;
 	frame: number;
 }
@@ -109,7 +124,8 @@ export type GameEvent =
 	| { type: "hit" }
 	| { type: "charge" }
 	| { type: "fall" }
-	| { type: "dog" };
+	| { type: "dog" }
+	| { type: "gate" };
 
 export function createWorld(level: Level): World {
 	const w = 12;
@@ -160,9 +176,25 @@ export function createWorld(level: Level): World {
 			dir: -1,
 			alive: true,
 		})),
+		presses: level.presses.map((p, i) => ({
+			x: p.x * TILE,
+			y: p.y * TILE,
+			topY: p.y * TILE,
+			floorY: floorBelow(level, p.x, p.y) - TILE,
+			phase: "wait",
+			// Staggered so a corridor of presses never drops in unison.
+			timer: PHYSICS.pressWait - ((i * 23) % PHYSICS.pressWait),
+		})),
 		camera: 0,
 		frame: 0,
 	};
+}
+
+/** Pixel y of the first solid tile at or below (tx, ty). */
+function floorBelow(level: Level, tx: number, ty: number): number {
+	let y = ty;
+	while (y < ROWS && !isSolid(level, tx, y)) y += 1;
+	return y * TILE;
 }
 
 function overlapsSolid(level: Level, x: number, y: number, w: number, h: number): boolean {
@@ -402,6 +434,42 @@ function touchDrones(world: World, events: GameEvent[]): void {
 	}
 }
 
+function movePress(p: Press): void {
+	const c = PHYSICS;
+	switch (p.phase) {
+		case "wait":
+			if (p.timer-- <= 0) p.phase = "drop";
+			return;
+		case "drop":
+			p.y = Math.min(p.floorY, p.y + c.pressDrop);
+			if (p.y === p.floorY) {
+				p.phase = "hold";
+				p.timer = c.pressHold;
+			}
+			return;
+		case "hold":
+			if (p.timer-- <= 0) p.phase = "rise";
+			return;
+		case "rise":
+			p.y = Math.max(p.topY, p.y - c.pressRise);
+			if (p.y === p.topY) {
+				p.phase = "wait";
+				p.timer = c.pressWait;
+			}
+			return;
+	}
+}
+
+function touchPresses(world: World, events: GameEvent[]): void {
+	const p = world.player;
+	for (const press of world.presses) {
+		movePress(press);
+		if (press.phase === "drop" && overlaps(p, press.x, press.y, TILE, TILE)) {
+			hurt(p, press.x + TILE / 2, events);
+		}
+	}
+}
+
 function touchPickups(world: World, events: GameEvent[]): void {
 	const p = world.player;
 	for (const nut of world.nuts) {
@@ -411,6 +479,9 @@ function touchPickups(world: World, events: GameEvent[]): void {
 	}
 	for (const c of world.level.chargers) {
 		if (overlaps(p, c.x * TILE, c.y * TILE, TILE, TILE)) events.push({ type: "charge" });
+	}
+	for (const g of world.level.gates) {
+		if (overlaps(p, g.x * TILE, (g.y - 2) * TILE, TILE, 3 * TILE)) events.push({ type: "gate" });
 	}
 }
 
@@ -427,6 +498,7 @@ export function step(world: World, input: Input): GameEvent[] {
 	moveScraps(world, events);
 	touchDrones(world, events);
 	touchDogs(world, events);
+	touchPresses(world, events);
 	touchPickups(world, events);
 	if (p.hurtLeft > 0) p.hurtLeft -= 1;
 	if (p.boostLeft > 0) p.boostLeft -= 1;

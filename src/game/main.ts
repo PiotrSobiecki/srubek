@@ -137,6 +137,11 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 		state = next;
 	};
 
+	// ?fps=1 shows frames per second in the corner.
+	const showFps = query.get("fps") === "1";
+	let fps = 0;
+	let frames = 0;
+	let fpsAt = performance.now();
 	let last = performance.now();
 	let acc = 0;
 	const frame = (now: number): void => {
@@ -147,7 +152,13 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 			tick();
 			acc -= STEP_MS;
 		}
-		render(world, state, board);
+		frames += 1;
+		if (now - fpsAt >= 1000) {
+			fps = frames;
+			frames = 0;
+			fpsAt = now;
+		}
+		render(world, state, board, showFps ? fps : undefined);
 		requestAnimationFrame(frame);
 	};
 	requestAnimationFrame(frame);

@@ -1313,7 +1313,12 @@ function drawActors(ctx: Ctx, world: World, camera: number): void {
 	drawEffects(ctx, world, camera);
 }
 
-export type Renderer = (world: World, state: GameState, board: readonly BoardRow[]) => void;
+export type Renderer = (
+	world: World,
+	state: GameState,
+	board: readonly BoardRow[],
+	fps?: number,
+) => void;
 
 export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 	canvas.width = VIEW_W * SCALE;
@@ -1330,7 +1335,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		return b;
 	};
 	const textures = loadTextures();
-	return (world, state, board) => {
+	return (world, state, board, fps) => {
 		const camera = Math.round(world.camera);
 		const quake = world.effects.find((e) => e.kind === "quake");
 		const shake = quake ? Math.max(0, 12 - (world.frame - quake.frame)) : 0;
@@ -1356,5 +1361,6 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		drawHud(ctx, state, world.frame);
 		if (world.boss?.alive) drawBossBar(ctx, world.boss);
 		if (state.status === "over") drawOverlay(ctx, state, board);
+		if (fps !== undefined) fancyText(ctx, `${fps} FPS`, VIEW_W - 6, 14, 11, "right");
 	};
 }

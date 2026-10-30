@@ -882,18 +882,26 @@ function drawHead(ctx: Ctx, frame: number, legPhase: number): void {
 	sphere(ctx, 0.5, -29.5, 1.7, "#ffe2a0", "#e07b1c");
 }
 
-function drawFlame(ctx: Ctx, frame: number): void {
-	const f = 3 + (frame % 2) * 1.5;
-	glow(ctx, 0, 2, 8, "rgba(255,140,40,A)", 0.5);
-	ctx.fillStyle = "rgba(255,120,30,0.9)";
-	ctx.beginPath();
-	ctx.moveTo(-4, -1);
-	ctx.lineTo(-1.5, f + 3);
-	ctx.lineTo(1, -1);
-	ctx.moveTo(1.5, -1);
-	ctx.lineTo(3.5, f + 2);
-	ctx.lineTo(5.5, -1);
-	ctx.fill();
+/** Jet flames under both wheels; `power` 1 for a plain jump, more for the thruster. */
+function drawFlame(ctx: Ctx, frame: number, power: number): void {
+	const f = (4 + (frame % 2) * 1.5) * power;
+	glow(ctx, 0, 3, 7 * power, "rgba(255,140,40,A)", 0.45);
+	for (const wx of [-3.6, 3.6]) {
+		ctx.fillStyle = "rgba(255,110,20,0.9)";
+		ctx.beginPath();
+		ctx.moveTo(wx - 2.2, 0);
+		ctx.lineTo(wx, f + 2);
+		ctx.lineTo(wx + 2.2, 0);
+		ctx.closePath();
+		ctx.fill();
+		ctx.fillStyle = "rgba(255,230,120,0.95)";
+		ctx.beginPath();
+		ctx.moveTo(wx - 1, 0);
+		ctx.lineTo(wx, f * 0.55 + 1);
+		ctx.lineTo(wx + 1, 0);
+		ctx.closePath();
+		ctx.fill();
+	}
 }
 
 /** Śrubek, scaled up from his hitbox with the feet pinned to its floor. */
@@ -911,6 +919,8 @@ function drawSrubek(ctx: Ctx, p: Player, frame: number, camera: number): void {
 	ctx.scale(p.facing * ACTOR, ACTOR);
 	ctx.translate(0, bob);
 
+	if (p.boostLeft > 0) drawFlame(ctx, frame, 1.6);
+	else if (!p.onGround && p.vy < 0) drawFlame(ctx, frame, 0.8);
 	drawWheels(ctx, p);
 
 	// Body: a rounded barrel with a glossy sweep, a rust dent and a chest light.
@@ -939,7 +949,6 @@ function drawSrubek(ctx: Ctx, p: Player, frame: number, camera: number): void {
 	sphere(ctx, -6.2, -5.2, 2, "#ff9c84", "#c23b25");
 
 	drawHead(ctx, frame, legPhase);
-	if (p.boostLeft > 0) drawFlame(ctx, frame);
 	ctx.restore();
 }
 

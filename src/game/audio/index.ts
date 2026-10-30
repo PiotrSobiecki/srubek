@@ -39,6 +39,7 @@ interface Tone {
 }
 
 const MASTER = 0.22;
+const MUSIC = 0.3;
 
 function tone(ctx: AudioContext, out: GainNode, t: Tone): void {
 	const osc = ctx.createOscillator();
@@ -122,7 +123,8 @@ const BY_EVENT: Partial<Record<GameEvent["type"], SoundName>> = {
 	gate: "gate",
 };
 
-export function createAudio(): Audio {
+/** `track` picks /music/level<n>.mp3; the pack has 1..3. */
+export function createAudio(track: 1 | 2 | 3 = 1): Audio {
 	let ctx: AudioContext | undefined;
 	let out: GainNode | undefined;
 	let muted = false;
@@ -141,6 +143,12 @@ export function createAudio(): Audio {
 		SOUNDS[name](ctx, out);
 	};
 
+	// Background track: a looping <audio> element, started with the context on the first key.
+	const music = new window.Audio(`/music/level${track}.mp3`);
+	music.loop = true;
+	music.volume = MUSIC;
+	music.preload = "auto";
+
 	return {
 		unlock() {
 			if (ctx) return;
@@ -148,10 +156,13 @@ export function createAudio(): Audio {
 			out = ctx.createGain();
 			out.gain.value = MASTER;
 			out.connect(ctx.destination);
+			if (!muted) music.play().catch(() => undefined);
 		},
 		play,
 		toggleMute() {
 			muted = !muted;
+			if (muted) music.pause();
+			else if (ctx) music.play().catch(() => undefined);
 			return muted;
 		},
 		react(events) {

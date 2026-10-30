@@ -38,7 +38,8 @@ export function start(canvas: HTMLCanvasElement): void {
 		query.get("theme") === "stocznia" ? "stocznia" : "zlomowisko",
 	);
 
-	const audio = createAudio();
+	// shortcut: one track per theme until the generator assigns music per level in phase 10
+	const audio = createAudio(query.get("theme") === "stocznia" ? 2 : 1);
 	const onShortcut = (code: string): void => {
 		audio.unlock();
 		if (code === "KeyM") audio.toggleMute();

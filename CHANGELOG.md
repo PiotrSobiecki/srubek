@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/PiotrSobiecki/srubek/compare/v1.12.0...v1.13.0) (2026-10-30)
+
+
+### Features
+
+* generator poziomów z łagodną krzywą trudności ([f5cb2f0](https://github.com/PiotrSobiecki/srubek/commit/f5cb2f086ae1a3a643b68f17bf796c14b052f0a2))
+
 # [1.12.0](https://github.com/PiotrSobiecki/srubek/compare/v1.11.0...v1.12.0) (2026-10-30)
 
 

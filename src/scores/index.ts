@@ -7,7 +7,7 @@ import { z } from "zod";
 import { maxScore } from "./max-score";
 
 export const NICK_MAX = 16;
-const BOARD_SIZE = 10;
+const BOARD_SIZE = 15;
 
 const ScoreInput = z.object({
 	nick: z.string().trim().min(1).max(NICK_MAX),

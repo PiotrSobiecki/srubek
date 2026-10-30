@@ -3,9 +3,19 @@ import { buildLevel, isSolid, levelFromRows, ROWS } from "./index";
 describe("buildLevel(1)", () => {
 	const level = buildLevel(1);
 
-	it("is the first segment only, with nuts to collect", () => {
-		expect(level.segments).toEqual(["nuts"]);
+	it("joins the nuts and drones segments", () => {
+		expect(level.segments).toEqual(["nuts", "drones"]);
 		expect(level.nuts.length).toBeGreaterThan(5);
+		expect(level.drones.length).toBeGreaterThanOrEqual(3);
+		expect(level.chargers).toHaveLength(1);
+	});
+
+	it("gives every drone a track wider than itself", () => {
+		for (const d of level.drones) {
+			expect(d.x0).toBeLessThan(d.x1);
+			expect(d.x).toBeGreaterThanOrEqual(d.x0);
+			expect(d.x).toBeLessThanOrEqual(d.x1);
+		}
 	});
 
 	it("has a rectangular grid of ROWS rows", () => {

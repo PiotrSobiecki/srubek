@@ -96,3 +96,71 @@ describe("nuts", () => {
 		expect(world.nuts.every((n) => n.taken)).toBe(true);
 	});
 });
+
+describe("drones", () => {
+	// Drone patrols tiles 4..10 in row 5; charger at the far right.
+	const DRONES = levelFromRows([
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....................",
+		"....---v---.........",
+		"....................",
+		"..P.............=c..",
+		"####################",
+	]);
+
+	it("patrol their track and turn at both ends", () => {
+		const world = createWorld(DRONES);
+		const d = world.drones[0];
+		if (!d) throw new Error("no drone");
+		const seen = new Set<number>();
+		for (let i = 0; i < 400; i++) {
+			step(world, IDLE);
+			seen.add(d.dir);
+			expect(d.x).toBeGreaterThanOrEqual(d.minX);
+			expect(d.x).toBeLessThanOrEqual(d.maxX);
+		}
+		expect([...seen].sort()).toEqual([-1, 1]);
+	});
+
+	it("die when stomped from above, bouncing the player", () => {
+		const world = createWorld(DRONES);
+		const d = world.drones[0];
+		if (!d) throw new Error("no drone");
+		settle(world);
+		world.player.x = Math.round(d.x);
+		world.player.y = d.y - world.player.h - 4;
+		world.player.vy = 2;
+		world.player.sy = 0;
+		const events = [];
+		for (let i = 0; i < 10 && d.alive; i++) events.push(...step(world, IDLE));
+		expect(events).toContainEqual({ type: "drone" });
+		expect(d.alive).toBe(false);
+		expect(world.player.vy).toBeLessThan(0);
+	});
+
+	it("hurt the player once on side contact, then grant a grace period", () => {
+		const world = createWorld(DRONES);
+		const d = world.drones[0];
+		if (!d) throw new Error("no drone");
+		world.player.x = Math.round(d.x) + d.w;
+		world.player.y = d.y - 4;
+		world.player.vy = 0;
+		const first = step(world, IDLE);
+		expect(first).toContainEqual({ type: "hit" });
+		expect(d.alive).toBe(true);
+		const later = [];
+		for (let i = 0; i < 30; i++) later.push(...step(world, IDLE));
+		expect(later.filter((e) => e.type === "hit")).toEqual([]);
+	});
+
+	it("report the charger every frame the player stands on it", () => {
+		const world = createWorld(DRONES);
+		world.player.x = 17 * TILE + 2;
+		world.player.y = 7 * TILE;
+		settle(world);
+		expect(step(world, IDLE)).toContainEqual({ type: "charge" });
+	});
+});

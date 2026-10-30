@@ -6,7 +6,7 @@
 
 import { type Player, VIEW_H, VIEW_W, type World } from "@/game/engine";
 import { type Level, TILE } from "@/game/level";
-import type { GameState } from "@/game/state";
+import { BATTERY_MAX, type GameState, totalPoints } from "@/game/state";
 
 const PALETTE: Record<string, string> = {
 	a: "#2b2f36", // dark metal
@@ -114,6 +114,49 @@ const NUT: Pixels = [
 	"..pppp..",
 ];
 
+const DRONE_1: Pixels = [
+	"a..........a",
+	"aaaaa..aaaaa",
+	".....aa.....",
+	"...annnna...",
+	"..anneenna..",
+	"..annnnnna..",
+	"...aarraa...",
+	"....a..a....",
+];
+
+const DRONE_2: Pixels = [
+	"....a..a....",
+	"..aaaaaaaa..",
+	".....aa.....",
+	"...annnna...",
+	"..anneenna..",
+	"..annnnnna..",
+	"...aarraa...",
+	"....a..a....",
+];
+
+const CHARGER: Pixels = [
+	"......dddd......",
+	"......daad......",
+	"......daad......",
+	".....dnnnnd.....",
+	".....dneend.....",
+	".....dneend.....",
+	".....dneend.....",
+	".....dnnnnd.....",
+	"....dnnnnnnd....",
+	"....dnneennd....",
+	"....dnnnnnnd....",
+	"...mmmmmmmmmm...",
+	"...mkmmmmmmkm...",
+	"...mmmmmmmmmm...",
+	"..nnnnnnnnnnnn..",
+	"..nnnnnnnnnnnn..",
+];
+
+const HEART: Pixels = [".rr.rr.", "rrrrrrr", "rrrrrrr", ".rrrrr.", "..rrr..", "...r..."];
+
 function bake(pixels: Pixels): HTMLCanvasElement {
 	const canvas = document.createElement("canvas");
 	canvas.width = pixels[0]?.length ?? 0;
@@ -186,6 +229,9 @@ interface Sprites {
 	run: HTMLCanvasElement[];
 	jump: HTMLCanvasElement;
 	nut: HTMLCanvasElement;
+	drone: HTMLCanvasElement[];
+	charger: HTMLCanvasElement;
+	heart: HTMLCanvasElement;
 	ground: HTMLCanvasElement[];
 	plate: HTMLCanvasElement;
 }
@@ -196,9 +242,28 @@ function bakeAll(): Sprites {
 		run: [bake(SRUBEK_RUN1), bake(SRUBEK_IDLE), bake(SRUBEK_RUN2), bake(SRUBEK_IDLE)],
 		jump: bake(SRUBEK_JUMP),
 		nut: bake(NUT),
+		drone: [bake(DRONE_1), bake(DRONE_2)],
+		charger: bake(CHARGER),
+		heart: bake(HEART),
 		ground: [bakeGround(1), bakeGround(2), bakeGround(3)],
 		plate: bakePlate(),
 	};
+}
+
+function drawDrones(ctx: CanvasRenderingContext2D, world: World, s: Sprites, camera: number): void {
+	const sprite = s.drone[Math.floor(world.frame / 4) % 2] ?? s.charger;
+	for (const d of world.drones) {
+		if (!d.alive) continue;
+		ctx.save();
+		if (d.dir < 0) {
+			ctx.translate(Math.round(d.x - camera) + d.w, Math.round(d.y));
+			ctx.scale(-1, 1);
+			ctx.drawImage(sprite, 0, 0);
+		} else {
+			ctx.drawImage(sprite, Math.round(d.x - camera), Math.round(d.y));
+		}
+		ctx.restore();
+	}
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D, camera: number): void {
@@ -250,6 +315,8 @@ function drawPlayer(
 	s: Sprites,
 	camera: number,
 ): void {
+	// Blink through the grace period after a hit.
+	if (p.hurtLeft > 0 && Math.floor(frame / 4) % 2 === 0) return;
 	let sprite = s.idle;
 	if (!p.onGround) sprite = s.jump;
 	else if (Math.abs(p.vx) > 0.3) sprite = s.run[Math.floor(frame / 6) % s.run.length] ?? s.idle;
@@ -268,12 +335,33 @@ function drawPlayer(
 
 function drawHud(ctx: CanvasRenderingContext2D, state: GameState, s: Sprites): void {
 	ctx.fillStyle = "rgba(0,0,0,0.45)";
-	ctx.fillRect(4, 4, 84, 14);
+	ctx.fillRect(4, 4, 150, 14);
 	ctx.drawImage(s.nut, 7, 7);
 	ctx.fillStyle = "#f4e7c3";
 	ctx.font = "10px monospace";
 	ctx.textBaseline = "top";
-	ctx.fillText(String(state.points).padStart(5, "0"), 20, 7);
+	ctx.fillText(String(totalPoints(state)).padStart(5, "0"), 20, 7);
+	for (let i = 0; i < BATTERY_MAX; i++) {
+		ctx.fillStyle = i < state.battery ? "#4ff0e0" : "#2b2f36";
+		ctx.fillRect(66 + i * 9, 8, 7, 6);
+	}
+	ctx.fillStyle = "#9aa3ad";
+	ctx.fillRect(93, 10, 2, 2);
+	for (let i = 0; i < state.lives; i++) ctx.drawImage(s.heart, 102 + i * 10, 8);
+}
+
+function drawGameOver(ctx: CanvasRenderingContext2D, state: GameState): void {
+	ctx.fillStyle = "rgba(0,0,0,0.6)";
+	ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+	ctx.fillStyle = "#f4e7c3";
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+	ctx.font = "bold 20px monospace";
+	ctx.fillText("KONIEC GRY", VIEW_W / 2, VIEW_H / 2 - 20);
+	ctx.font = "10px monospace";
+	ctx.fillText(`wynik ${totalPoints(state)}`, VIEW_W / 2, VIEW_H / 2 + 4);
+	ctx.fillText("Enter: jeszcze raz", VIEW_W / 2, VIEW_H / 2 + 20);
+	ctx.textAlign = "start";
 }
 
 export type Renderer = (world: World, state: GameState) => void;
@@ -294,7 +382,12 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 			const bob = Math.round(Math.sin((world.frame + nut.x * 7) / 12) * 1.5);
 			ctx.drawImage(sprites.nut, nut.x * TILE + 4 - camera, nut.y * TILE + 4 + bob);
 		}
+		for (const c of world.level.chargers) {
+			ctx.drawImage(sprites.charger, c.x * TILE - camera, c.y * TILE);
+		}
+		drawDrones(ctx, world, sprites, camera);
 		drawPlayer(ctx, world.player, world.frame, sprites, camera);
 		drawHud(ctx, state, sprites);
+		if (state.status === "over") drawGameOver(ctx, state);
 	};
 }

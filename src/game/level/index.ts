@@ -3,6 +3,7 @@
  * named segments side by side. Nothing here knows about physics or drawing.
  *
  *   `#` scrap ground   `=` metal platform   `o` nut   `P` spawn   `.` air
+ *   `v` drone, patrolling the run of `-` it sits in   `c` charger
  */
 
 export const TILE = 16;
@@ -13,13 +14,21 @@ export interface Vec {
 	y: number;
 }
 
-export type SegmentName = "nuts";
+/** A drone and the tile span it patrols, inclusive. */
+interface DroneSpec extends Vec {
+	x0: number;
+	x1: number;
+}
+
+export type SegmentName = "nuts" | "drones";
 
 export interface Level {
 	rows: string[];
 	widthTiles: number;
 	spawn: Vec;
 	nuts: Vec[];
+	drones: DroneSpec[];
+	chargers: Vec[];
 	segments: SegmentName[];
 }
 
@@ -37,25 +46,59 @@ const SEGMENTS: Record<SegmentName, string[]> = {
 		"...........................=====...............=========....",
 		"......o.o...................................................",
 		"......====..................................................",
-		"...........................................................#",
-		"....P.............................................###......#",
+		"............................................................",
+		"....P.............................................###.......",
+		"############################################################",
+		"############################################################",
+	],
+	drones: [
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................................................",
+		"............................o...............................",
+		".........................---v---............................",
+		"......................=====.....=====.......................",
+		"..............o.o..........................o.o..............",
+		"...........---v-----..............-----v----................",
+		"..............................................o.o.o.........",
+		"...........................................---v---..........",
+		"....o...............................................=====...",
+		"...===...................................................c..",
+		"..............---v---...###......---v---................===.",
 		"############################################################",
 		"############################################################",
 	],
 };
 
+function trackSpan(row: string, x: number): [number, number] {
+	const onTrack = (i: number) => row[i] === "-" || row[i] === "v";
+	let x0 = x;
+	let x1 = x;
+	while (onTrack(x0 - 1)) x0 -= 1;
+	while (onTrack(x1 + 1)) x1 += 1;
+	return [x0, x1];
+}
+
 /** Parse rows into a level. Exported for tests that need hand-made grids. */
 export function levelFromRows(rows: string[], segments: SegmentName[] = []): Level {
 	const nuts: Vec[] = [];
+	const drones: DroneSpec[] = [];
+	const chargers: Vec[] = [];
 	let spawn: Vec = { x: 1, y: 1 };
 	rows.forEach((row, y) => {
 		for (let x = 0; x < row.length; x++) {
 			const c = row[x];
 			if (c === "o") nuts.push({ x, y });
+			if (c === "c") chargers.push({ x, y });
 			if (c === "P") spawn = { x, y };
+			if (c === "v") {
+				const [x0, x1] = trackSpan(row, x);
+				drones.push({ x, y, x0, x1 });
+			}
 		}
 	});
-	return { rows, widthTiles: rows[0]?.length ?? 0, spawn, nuts, segments };
+	return { rows, widthTiles: rows[0]?.length ?? 0, spawn, nuts, drones, chargers, segments };
 }
 
 export function isSolid(level: Level, tx: number, ty: number): boolean {
@@ -67,7 +110,7 @@ export function isSolid(level: Level, tx: number, ty: number): boolean {
 export function buildLevel(n: number): Level {
 	// shortcut: only level 1 exists, generator arrives in phase 10
 	if (n !== 1) return buildLevel(1);
-	const names: SegmentName[] = ["nuts"];
+	const names: SegmentName[] = ["nuts", "drones"];
 	const rows = Array.from({ length: ROWS }, (_, y) =>
 		names.map((name) => SEGMENTS[name][y] ?? "").join(""),
 	);

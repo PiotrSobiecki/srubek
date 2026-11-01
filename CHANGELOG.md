@@ -1,3 +1,15 @@
+# [1.30.0](https://github.com/PiotrSobiecki/srubek/compare/v1.29.0...v1.30.0) (2026-11-01)
+
+
+### Bug Fixes
+
+* **mobile:** hamburger łatwiej trafić i jest wyśrodkowany ([5fec628](https://github.com/PiotrSobiecki/srubek/commit/5fec628ac543e49b9d35ba68671f443c11033957))
+
+
+### Features
+
+* **mobile:** boczne pasy jak konsola, rysunki z gry na przyciskach ([cf839c0](https://github.com/PiotrSobiecki/srubek/commit/cf839c0b25c33fce9398661ce3034c641f0dad1c))
+
 # [1.29.0](https://github.com/PiotrSobiecki/srubek/compare/v1.28.0...v1.29.0) (2026-11-01)
 
 

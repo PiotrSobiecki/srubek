@@ -1,3 +1,15 @@
+# [1.29.0](https://github.com/PiotrSobiecki/srubek/compare/v1.28.0...v1.29.0) (2026-11-01)
+
+
+### Bug Fixes
+
+* **mobile:** menu i pełny ekran reagują w trakcie gry ([914bcc3](https://github.com/PiotrSobiecki/srubek/commit/914bcc340453c92fcdbb2b41c12c808c2bc2829f))
+
+
+### Features
+
+* **mobile:** drążek i skok na czarnych pasach, ikony na przyciskach ([c3b14b1](https://github.com/PiotrSobiecki/srubek/commit/c3b14b142943d514d5c5f1a2c71ebb4d2d4483be))
+
 # [1.28.0](https://github.com/PiotrSobiecki/srubek/compare/v1.27.3...v1.28.0) (2026-11-01)
 
 

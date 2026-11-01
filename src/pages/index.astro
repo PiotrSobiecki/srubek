@@ -39,8 +39,13 @@ import Layout from "@/layouts/Layout.astro";
 							<select id="skin-accessory" class="h-8 rounded border border-amber-300/40 bg-neutral-900 px-2 text-sm text-amber-50"></select>
 						</label>
 					</div>
+					<details class="keys">
+						<summary class="hint cursor-pointer text-lg tracking-wide text-amber-100">Sterowanie: kliknij czynność i naciśnij nowy klawisz</summary>
+						<div id="keys" class="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2"></div>
+						<button id="keys-reset" type="button" class="hint mt-2 rounded border border-amber-300/40 bg-neutral-900 px-3 py-1 text-sm tracking-wide text-amber-100 hover:border-amber-300">Klawisze domyślne</button>
+					</details>
 					<button id="play" type="button" class="title mt-1 rounded-lg border-2 border-amber-300/60 bg-neutral-950/80 px-6 py-2 text-3xl tracking-wider hover:border-amber-200">GRAJ</button>
-					<p class="text-xs text-neutral-400">Strój zapisuje się w tej przeglądarce. Esc albo przycisk Menu wraca tutaj.</p>
+					<p class="text-xs text-neutral-400">Strój i klawisze zapisują się w tej przeglądarce. Esc albo przycisk Menu wraca tutaj.</p>
 				</div>
 			</div>
 		</div>
@@ -51,7 +56,7 @@ import Layout from "@/layouts/Layout.astro";
 			<button id="toggle-pad" type="button" class="hint rounded border border-amber-300/40 bg-neutral-900 px-3 py-1 text-base tracking-wide text-amber-100 hover:border-amber-300">Przyciski na ekranie</button>
 		</div>
 
-		<p class="hint max-w-[960px] text-center text-sm tracking-wide text-amber-200/80 sm:text-base">strzałki / WASD: jazda · spacja: skok (przytrzymaj, by skoczyć wyżej; w locie raz jeszcze) · C: magnes zbiera złom (do 10 szt.) · X: rzut złomem · Z: mega kula (za 10 śrub) · Shift / V: cios przedmiotem z ręki · M: dźwięk · mysz: trzymaj lewy, by jechać w stronę kursora, prawy skok, środkowy rzut</p>
+		<p id="key-hint" class="hint max-w-[960px] text-center text-sm tracking-wide text-amber-200/80 sm:text-base">strzałki / WASD: jazda · spacja: skok (przytrzymaj, by skoczyć wyżej; w locie raz jeszcze) · C: magnes zbiera złom (do 10 szt.) · X: rzut złomem · Z: mega kula (za 10 śrub) · Shift / V: cios przedmiotem z ręki · M: dźwięk · mysz: trzymaj lewy, by jechać w stronę kursora, prawy skok, środkowy rzut</p>
 
 	</main>
 
@@ -262,6 +267,27 @@ import Layout from "@/layouts/Layout.astro";
 	.preset:hover {
 		border-color: #ffd27a;
 	}
+	.keybind {
+		font-family: "Bangers", "Impact", sans-serif;
+		letter-spacing: 0.05em;
+		font-size: 1rem;
+		text-align: left;
+		padding: 0.2rem 0.6rem;
+		border-radius: 0.4rem;
+		border: 1px solid rgba(255, 210, 120, 0.4);
+		background: rgba(20, 16, 30, 0.8);
+		color: #fff4d6;
+	}
+	.keybind:hover,
+	.keybind:focus-visible {
+		border-color: #ffd27a;
+	}
+	/* Phones and tablets play on the touch pad; the keyboard section only takes room there. */
+	@media (pointer: coarse) {
+		.keys {
+			display: none;
+		}
+	}
 
 	/* Small round buttons in the stage's corner, for when the page around it is out of reach. */
 	.float-btns {
@@ -403,6 +429,7 @@ import Layout from "@/layouts/Layout.astro";
 	import { mountBoard } from "@/board";
 	import { mountFullscreen, mountMouse, mountPad, preventPageZoom, touchDevice } from "@/controls";
 	import { type Game, start } from "@/game/main";
+	import { mountKeys } from "@/keys";
 	import { mountWardrobe } from "@/wardrobe";
 
 	const canvas = document.getElementById("game");
@@ -426,6 +453,9 @@ import Layout from "@/layouts/Layout.astro";
 	const form = document.getElementById("score-form");
 	const nick = document.getElementById("score-nick");
 	const note = document.getElementById("score-note");
+	const keys = document.getElementById("keys");
+	const keysReset = document.getElementById("keys-reset");
+	const keyHint = document.getElementById("key-hint");
 
 	if (
 		canvas instanceof HTMLCanvasElement &&
@@ -448,7 +478,10 @@ import Layout from "@/layouts/Layout.astro";
 		skinAccent instanceof HTMLInputElement &&
 		skinHat instanceof HTMLSelectElement &&
 		skinAccessory instanceof HTMLSelectElement &&
-		skinHand instanceof HTMLSelectElement
+		skinHand instanceof HTMLSelectElement &&
+		keys instanceof HTMLElement &&
+		keysReset instanceof HTMLButtonElement &&
+		keyHint instanceof HTMLElement
 	) {
 		let game: Game | undefined;
 		const board = mountBoard({ modal, form, nick, note }, (rows) => game?.setBoard(rows));
@@ -489,6 +522,7 @@ import Layout from "@/layouts/Layout.astro";
 				{ presets, body: skinBody, eyes: skinEyes, accent: skinAccent, hat: skinHat, accessory: skinAccessory, hand: skinHand },
 				game,
 			);
+			mountKeys({ list: keys, reset: keysReset, hint: keyHint }, game);
 		});
 	}
 </script>

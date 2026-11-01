@@ -13,29 +13,19 @@ import { carriedScrap, createWorld, type Input, step, VIEW_W, type World } from 
 import { buildArena, buildLevel, type Level } from "@/game/level";
 import { type BoardRow, createRenderer } from "@/game/render";
 import { applyEvents, createState, type GameState, nextLevel } from "@/game/state";
+import { type Bindings, DEFAULT_BINDINGS } from "@/keys";
 import { DEFAULT_SKIN, HAND_REACH, type Skin } from "@/skin";
 
 const STEP_MS = 1000 / 60;
 
-const KEYS: Record<string, keyof Input> = {
-	ArrowLeft: "left",
-	KeyA: "left",
-	ArrowRight: "right",
-	KeyD: "right",
-	Space: "jump",
-	ArrowUp: "jump",
-	KeyW: "jump",
-	KeyZ: "mega",
-	ShiftLeft: "attack",
-	ShiftRight: "attack",
-	KeyV: "attack",
-	KeyC: "magnet",
-	KeyE: "magnet",
-	KeyX: "throw",
-	KeyF: "throw",
-	ControlLeft: "throw",
-	ArrowDown: "throw",
-};
+/** Key code to control, flattened from the bindings. */
+function keyMap(bindings: Bindings): Map<string, keyof Input> {
+	return new Map(
+		(Object.entries(bindings) as [keyof Input, string[]][]).flatMap(([action, codes]) =>
+			codes.map((code) => [code, action] as const),
+		),
+	);
+}
 
 /** Every run gets its own seed, so its levels, looks and bosses differ from the last run's. */
 function newSeed(): number {
@@ -61,6 +51,8 @@ export interface Game {
 	pointAt(fraction: number | undefined): void;
 	/** Freeze the simulation (menu open); drawing continues. */
 	setPaused(paused: boolean): void;
+	/** Which keys drive which control. */
+	setKeys(bindings: Bindings): void;
 }
 
 export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
@@ -68,6 +60,7 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 	let skin: Skin = DEFAULT_SKIN;
 	let pointer: number | undefined;
 	let paused = false;
+	let keys = keyMap(DEFAULT_BINDINGS);
 	const input: Input = {
 		left: false,
 		right: false,
@@ -120,7 +113,7 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 		// Typing a nick into the form must not steer the game.
 		if (e.target instanceof HTMLInputElement) return;
 		if (down) onShortcut(e.code);
-		const key = KEYS[e.code];
+		const key = keys.get(e.code);
 		if (!key) return;
 		press(key, down);
 		e.preventDefault();
@@ -219,6 +212,9 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 		},
 		setPaused(next) {
 			paused = next;
+		},
+		setKeys(bindings) {
+			keys = keyMap(bindings);
 		},
 		pointAt(fraction) {
 			pointer = fraction;

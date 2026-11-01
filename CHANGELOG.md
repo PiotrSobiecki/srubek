@@ -1,3 +1,10 @@
+## [1.27.3](https://github.com/PiotrSobiecki/srubek/compare/v1.27.2...v1.27.3) (2026-11-01)
+
+
+### Bug Fixes
+
+* **boss:** magnes przyciąga słabiej niż jazda ([b984774](https://github.com/PiotrSobiecki/srubek/commit/b98477435394ea7df739bd81e8fb4f1f781f8189))
+
 ## [1.27.2](https://github.com/PiotrSobiecki/srubek/compare/v1.27.1...v1.27.2) (2026-10-30)
 
 

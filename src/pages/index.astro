@@ -10,7 +10,9 @@ import Layout from "@/layouts/Layout.astro";
 			<canvas id="game" width="960" height="512" class="block w-full rounded-lg bg-neutral-900 shadow-2xl" aria-label="Gra Śrubek"></canvas>
 			<div id="pad" hidden class="pad"></div>
 			<div class="float-btns">
-				<button id="float-menu" type="button" class="float-btn" aria-label="Menu">☰</button>
+				<button id="float-menu" type="button" class="float-btn" aria-label="Menu">
+					<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" /></svg>
+				</button>
 				<button id="float-fullscreen" type="button" class="float-btn" aria-label="Pełny ekran">⤢</button>
 			</div>
 
@@ -329,8 +331,12 @@ import Layout from "@/layouts/Layout.astro";
 		z-index: 5;
 	}
 	.float-btn {
-		width: 2.4rem;
-		height: 2.4rem;
+		position: relative;
+		display: grid;
+		place-items: center;
+		padding: 0;
+		width: 2.75rem;
+		height: 2.75rem;
 		border-radius: 999px;
 		border: 2px solid rgba(255, 210, 120, 0.55);
 		background: rgba(20, 16, 30, 0.6);
@@ -339,6 +345,12 @@ import Layout from "@/layouts/Layout.astro";
 		line-height: 1;
 		touch-action: manipulation;
 		-webkit-tap-highlight-color: transparent;
+	}
+	/* A thumb near the button still hits it rather than the jump zone underneath. */
+	.float-btn::after {
+		content: "";
+		position: absolute;
+		inset: -0.4rem;
 	}
 	#stage.is-fullscreen .float-btns {
 		display: flex;

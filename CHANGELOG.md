@@ -1,3 +1,10 @@
+# [1.32.0](https://github.com/PiotrSobiecki/srubek/compare/v1.31.0...v1.32.0) (2026-11-01)
+
+
+### Features
+
+* **mobile:** większy ekran i przyciski konsoli, wybór koloru ([6c10b03](https://github.com/PiotrSobiecki/srubek/commit/6c10b03820a7c52818556b9794691c59142d819a))
+
 # [1.31.0](https://github.com/PiotrSobiecki/srubek/compare/v1.30.0...v1.31.0) (2026-11-01)
 
 

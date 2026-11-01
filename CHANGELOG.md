@@ -1,3 +1,17 @@
+# [1.28.0](https://github.com/PiotrSobiecki/srubek/compare/v1.27.3...v1.28.0) (2026-11-01)
+
+
+### Bug Fixes
+
+* **mobile:** strona nie przesuwa się pod kciukiem ([01413fb](https://github.com/PiotrSobiecki/srubek/commit/01413fb65b2f968eac127e944d2b0bce8aa54617))
+
+
+### Features
+
+* **boss:** więcej życia co 10 poziomów, mega kula za dwa ([13349b3](https://github.com/PiotrSobiecki/srubek/commit/13349b3f40aac321760c97be107e6e3123efd7d8))
+* każda gra losuje własne plansze, wygląd i bossów ([311ad73](https://github.com/PiotrSobiecki/srubek/commit/311ad738bb8904b78e50badb78313408f06015bb))
+* klawisze sterowania do ustawienia w menu ([a6bf0a2](https://github.com/PiotrSobiecki/srubek/commit/a6bf0a2d22e095e42f346dc250e0b6165c619c64))
+
 ## [1.27.3](https://github.com/PiotrSobiecki/srubek/compare/v1.27.2...v1.27.3) (2026-11-01)
 
 

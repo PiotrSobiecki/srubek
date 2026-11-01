@@ -454,9 +454,9 @@ function pull(boss: Boss, world: World, events: GameEvent[]): void {
 	const p = world.player;
 	const cx = boss.x + boss.w / 2;
 	const dx = cx - (p.x + p.w / 2);
-	// Stronger than ground friction, so the drag wins when Śrubek stands still,
-	// but only within the field: from the arena's edges he is out of reach.
-	if (Math.abs(dx) < MAGNET_REACH) p.vx += Math.sign(dx) * 0.35;
+	// Between friction (0.15) and run acceleration (0.2): the drag wins when Śrubek
+	// stands still, driving away beats it; from the arena's edges he is out of reach.
+	if (Math.abs(dx) < MAGNET_REACH) p.vx += Math.sign(dx) * 0.16;
 	if (boss.timer % 25 === 0 && boss.ammo > 0) {
 		boss.ammo -= 1;
 		world.shots.push({ x: cx - 4, y: boss.y + boss.h, vx: 0, vy: 1 });

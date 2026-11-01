@@ -294,17 +294,31 @@ describe("magnes / przyciag", () => {
 		expect(p.x).toBe(startX);
 	});
 
-	it("drags Śrubek toward itself and drops scrap, then sinks into reach", () => {
+	it.each([
+		["drags a still Śrubek in", IDLE, 1],
+		["lets Śrubek drive out against the pull", { ...IDLE, left: true }, -1],
+	] as const)("%s", (_, input, sign) => {
+		const [world, boss] = arena("magnes", "przyciag", "rdzen");
+		const p = world.player;
+		p.x = boss.x - 60;
+		p.y = boss.floorY + boss.h - p.h;
+		const startX = p.x;
+		boss.phase = "pull";
+		boss.timer = 60;
+		boss.ammo = 0;
+		run(world, 60, input);
+		expect(Math.sign(p.x - startX)).toBe(sign);
+	});
+
+	it("drops scrap, then sinks into reach", () => {
 		const [world, boss] = arena("magnes", "przyciag", "rdzen");
 		const p = world.player;
 		p.x = boss.x - 90;
 		p.y = boss.floorY + boss.h - p.h;
-		const startX = p.x;
 		let dropped = 0;
 		for (let i = 0; i < 400 && !coreOpen(boss); i++) {
 			dropped += step(world, IDLE).filter((e) => e.type === "throw").length;
 		}
-		expect(p.x).toBeGreaterThan(startX);
 		expect(dropped).toBeGreaterThan(0);
 		expect(boss.phase).toBe("dip");
 	});

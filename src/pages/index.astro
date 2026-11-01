@@ -15,6 +15,7 @@ import Layout from "@/layouts/Layout.astro";
 				</button>
 				<button id="float-fullscreen" type="button" class="float-btn" aria-label="Pełny ekran">⤢</button>
 			</div>
+			<p id="fs-hint" class="fs-hint" role="status" hidden>Pełny ekran na iPhonie: Udostępnij → „Do ekranu początkowego”, potem graj z ikony Śrubka.</p>
 
 			<div id="menu" class="menu">
 				<div class="menu-panel">
@@ -346,6 +347,22 @@ import Layout from "@/layouts/Layout.astro";
 		touch-action: manipulation;
 		-webkit-tap-highlight-color: transparent;
 	}
+	.fs-hint {
+		position: absolute;
+		top: 4rem;
+		left: 50%;
+		z-index: 6;
+		width: max-content;
+		max-width: 80%;
+		transform: translateX(-50%);
+		padding: 0.5rem 0.8rem;
+		border-radius: 0.6rem;
+		background: rgba(20, 16, 30, 0.92);
+		color: #ffe9a8;
+		font-size: 0.95rem;
+		text-align: center;
+		pointer-events: none;
+	}
 	/* A thumb near the button still hits it rather than the jump zone underneath. */
 	.float-btn::after {
 		content: "";
@@ -430,73 +447,144 @@ import Layout from "@/layouts/Layout.astro";
 			align-items: center;
 			justify-content: center;
 			background: #000;
-			/* Each black strip beside the canvas: the notch inset plus room for the stick or the buttons. */
+			/* Container units below: Brave on iPhone keeps the notch strips, so 100vw is wider than the stage. */
+			container-type: size;
+			/* Each side of the console: the notch inset plus room for the stick or the buttons. */
 			--edge: max(0.4rem, env(safe-area-inset-left), env(safe-area-inset-right));
 			--side: 7.2rem;
-			--game-w: min(100vw - 2 * (var(--edge) + var(--side)), calc(100dvh * 960 / 512));
-			--strip: calc((100vw - var(--game-w)) / 2);
-			/* Middle of a strip, measured from the screen edge, past the notch. */
-			--mid: calc((var(--strip) + var(--edge)) / 2);
+			/* The screen's bezel plus a little air before the buttons. */
+			--bezel: 0.8rem;
+			--game-w: min(
+				100cqw - 2 * (var(--edge) + var(--side) + var(--bezel)),
+				(100cqh - 1.6rem) * 960 / 512
+			);
+			--strip: calc((100cqw - var(--game-w)) / 2);
+			/* Middle of a side between the notch and the bezel. */
+			--mid: calc((var(--strip) - var(--bezel) + var(--edge)) / 2);
+			/* Height of the stick and the jump button, level with each other. */
+			--grip-y: calc(100% - max(1rem, env(safe-area-inset-bottom)) - 2.3rem);
 		}
 		#stage #game,
 		#stage.is-fullscreen #game {
 			width: var(--game-w);
 			height: auto;
-			border-radius: 0;
-			box-shadow: none;
+			border-radius: 0.3rem;
+			/* The screen's black bezel and its thin rim. */
+			box-shadow:
+				0 0 0 0.4rem #15131a,
+				0 0 0 0.5rem #b4ac9d;
 		}
-		/* The strips as the two halves of a handheld console around the screen. */
-		.zone-move::before,
-		.zone-jump::before {
+		/* One handheld console body behind the screen; z-index -1 keeps it under the canvas. */
+		.pad::before {
 			content: "";
 			position: absolute;
-			top: 0;
-			bottom: 0;
-			width: var(--strip);
-			background: linear-gradient(180deg, #2e2643, #191424 55%, #100c18);
-		}
-		.zone-move::before {
-			left: 0;
+			inset: 0;
+			z-index: -1;
+			border-radius: 3rem;
+			background: linear-gradient(180deg, #f3eee4, #d8d0c1);
 			box-shadow:
-				inset -4px 0 0 #07050b,
-				inset -6px 0 0 rgba(255, 210, 120, 0.18);
+				inset 0 3px 0 rgba(255, 255, 255, 0.7),
+				inset 0 -4px 0 rgba(0, 0, 0, 0.12);
 		}
-		.zone-jump::before {
-			right: 0;
-			box-shadow:
-				inset 4px 0 0 #07050b,
-				inset 6px 0 0 rgba(255, 210, 120, 0.18);
+		.pad::after {
+			content: "ŚRUBEK";
+			position: absolute;
+			left: var(--mid);
+			top: max(1rem, env(safe-area-inset-top));
+			transform: translateX(-50%);
+			font-family: "Bangers", "Impact", sans-serif;
+			font-size: 1.4rem;
+			letter-spacing: 0.12em;
+			color: #6c3f8a;
+		}
+		/* The stick and jump button are on show here, so the zone hints only crowd them. */
+		.zone-label {
+			display: none;
 		}
 		.stick,
 		.knob {
 			display: block;
 			left: var(--mid);
-			top: 60%;
+			top: var(--grip-y);
 		}
 		.stick {
-			background: rgba(7, 5, 11, 0.6);
-			box-shadow: inset 0 3px 8px #000;
+			border: 0.35rem solid #fbf8f2;
+			background: radial-gradient(circle, #3a3a40, #1c1c21 70%);
+			box-shadow:
+				0 0 0 1px #b4ac9d,
+				inset 0 3px 8px #000;
 		}
 		.knob {
-			border: 2px solid rgba(255, 210, 120, 0.55);
-			background: radial-gradient(circle at 35% 30%, #6a5d85, #2a2238 70%);
+			width: 3.4rem;
+			height: 3.4rem;
+			background: radial-gradient(circle at 40% 35%, #5a5a62, #2a2a30 70%);
+			box-shadow:
+				0 3px 6px rgba(0, 0, 0, 0.5),
+				inset 0 -3px 0 rgba(0, 0, 0, 0.35);
 		}
+		/* Jump sits where a second stick would, level with the left one. */
 		.jump-btn {
 			display: flex;
 			right: calc(var(--mid) - 2.3rem);
-			bottom: max(0.8rem, env(safe-area-inset-bottom));
-			background: radial-gradient(circle at 35% 30%, #ffcf7a, #c76b12 75%);
-			box-shadow: 0 4px 0 #07050b;
-			color: #1b1a22;
+			top: var(--grip-y);
+			transform: translateY(-50%);
+			border: 0.35rem solid #fbf8f2;
+			background: radial-gradient(circle at 40% 35%, #5a5a62, #2a2a30 70%);
+			box-shadow:
+				0 0 0 1px #b4ac9d,
+				0 3px 6px rgba(0, 0, 0, 0.45);
+			color: #f3eee4;
 		}
 		.zone-jump.is-down .jump-btn {
-			background: #c76b12;
-			box-shadow: none;
-			transform: translateY(3px);
+			background: #1c1c21;
+			box-shadow: 0 0 0 1px #b4ac9d;
+			transform: translateY(calc(-50% + 2px));
 		}
+		/* The four actions as a diamond of face buttons. */
 		.actions {
-			right: calc(var(--mid) - 3.45rem);
-			top: 42%;
+			right: calc(var(--mid) - 3.3rem);
+			top: 38%;
+			grid-template-columns: repeat(3, 2.2rem);
+			grid-auto-rows: 2.2rem;
+			gap: 0;
+		}
+		.pad-btn {
+			width: 2.6rem;
+			height: 2.6rem;
+			place-self: center;
+			font-size: 1.3rem;
+			border: none;
+			background: radial-gradient(circle at 38% 32%, #b58ad0, #6c3f8a 72%);
+			box-shadow:
+				0 3px 0 #4a2a60,
+				0 4px 6px rgba(0, 0, 0, 0.35);
+		}
+		.pad-btn.is-down {
+			background: #4a2a60;
+			box-shadow: none;
+		}
+		.pad-btn:nth-child(1) {
+			grid-area: 1 / 2;
+		}
+		.pad-btn:nth-child(2) {
+			grid-area: 2 / 1;
+		}
+		.pad-btn:nth-child(3) {
+			grid-area: 3 / 2;
+		}
+		.pad-btn:nth-child(4) {
+			grid-area: 2 / 3;
+		}
+		/* Menu and fullscreen as the console's small round buttons, centred on the right side. */
+		.float-btns {
+			top: max(0.8rem, env(safe-area-inset-top));
+			right: calc(var(--mid) - 2.94rem);
+		}
+		.float-btn {
+			border: none;
+			background: radial-gradient(circle at 40% 35%, #5a5a62, #2a2a30 70%);
+			box-shadow: 0 2px 0 #15131a;
+			color: #f3eee4;
 		}
 		.menu {
 			border-radius: 0;
@@ -552,6 +640,7 @@ import Layout from "@/layouts/Layout.astro";
 	const openMenu = document.getElementById("open-menu");
 	const floatMenu = document.getElementById("float-menu");
 	const floatFullscreen = document.getElementById("float-fullscreen");
+	const fsHint = document.getElementById("fs-hint");
 	const modal = document.getElementById("score-modal");
 	const form = document.getElementById("score-form");
 	const nick = document.getElementById("score-nick");
@@ -571,6 +660,7 @@ import Layout from "@/layouts/Layout.astro";
 		openMenu instanceof HTMLButtonElement &&
 		floatMenu instanceof HTMLButtonElement &&
 		floatFullscreen instanceof HTMLButtonElement &&
+		fsHint instanceof HTMLElement &&
 		modal instanceof HTMLElement &&
 		form instanceof HTMLFormElement &&
 		nick instanceof HTMLInputElement &&
@@ -611,9 +701,18 @@ import Layout from "@/layouts/Layout.astro";
 			play.addEventListener("click", () => setMenu(false));
 			openMenu.addEventListener("click", () => setMenu(true));
 			floatMenu.addEventListener("click", () => setMenu(true));
-			floatFullscreen.addEventListener("click", () => fullscreen.click());
-			// iPhone has no element fullscreen, and held sideways the stage already fills the window.
-			floatFullscreen.hidden = touchDevice() && !document.fullscreenEnabled;			// Turning a phone upright hides the stage behind the rotate prompt, so pause into the menu.
+			// iPhone has no element fullscreen: the home-screen app is the way, so the button says how.
+			floatFullscreen.hidden = window.matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches;
+			floatFullscreen.addEventListener("click", () => {
+				if (document.fullscreenEnabled || !touchDevice()) {
+					fullscreen.click();
+					return;
+				}
+				fsHint.hidden = false;
+				setTimeout(() => {
+					fsHint.hidden = true;
+				}, 6000);
+			});			// Turning a phone upright hides the stage behind the rotate prompt, so pause into the menu.
 			const upright = window.matchMedia("(pointer: coarse) and (orientation: portrait)");
 			upright.addEventListener("change", () => {
 				if (upright.matches) setMenu(true);

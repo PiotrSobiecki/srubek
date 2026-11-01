@@ -1,3 +1,10 @@
+# [1.31.0](https://github.com/PiotrSobiecki/srubek/compare/v1.30.0...v1.31.0) (2026-11-01)
+
+
+### Features
+
+* **mobile:** widok konsoli i pełny ekran przez ekran początkowy ([2e26879](https://github.com/PiotrSobiecki/srubek/commit/2e26879637ea4db05d972d4512433d94edb6c9eb))
+
 # [1.30.0](https://github.com/PiotrSobiecki/srubek/compare/v1.29.0...v1.30.0) (2026-11-01)
 
 

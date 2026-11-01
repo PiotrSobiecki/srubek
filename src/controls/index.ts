@@ -9,14 +9,15 @@ import type { Game } from "@/game/main";
 
 interface ActionButton {
 	key: keyof Input;
-	label: string;
+	icon: string;
+	name: string;
 }
 
 const ACTIONS: ActionButton[] = [
-	{ key: "mega", label: "Z" },
-	{ key: "magnet", label: "C" },
-	{ key: "throw", label: "X" },
-	{ key: "attack", label: "⚔" },
+	{ key: "mega", icon: "✹", name: "Mega kula" },
+	{ key: "magnet", icon: "🧲", name: "Magnes" },
+	{ key: "throw", icon: "🔩", name: "Rzut" },
+	{ key: "attack", icon: "⚔", name: "Cios" },
 ];
 
 /** How far the thumb must slide before Śrubek moves, and where the stick stops. */
@@ -107,6 +108,8 @@ function mountStick(zone: HTMLElement, game: Game, onTouch: () => void): void {
 		id = undefined;
 		steer(0);
 		zone.classList.remove("is-down");
+		// Back to the resting spot the CSS gives it.
+		for (const node of [ring, knob]) node.style.left = node.style.top = "";
 	};
 	zone.addEventListener("pointerup", release);
 	zone.addEventListener("pointercancel", release);
@@ -116,7 +119,8 @@ function mountStick(zone: HTMLElement, game: Game, onTouch: () => void): void {
 /**
  * Touch layout borrowed from one-button games: the screen halves are the big
  * controls, so a thumb never misses. Left half steers, right half jumps, and
- * four small buttons on the right edge carry the actions.
+ * four small buttons on the right edge carry the actions. Held sideways, the
+ * stick and the jump button rest in the black strips beside the canvas.
  */
 export function mountPad(host: HTMLElement, game: Game): (visible: boolean) => void {
 	host.replaceChildren();
@@ -130,11 +134,12 @@ export function mountPad(host: HTMLElement, game: Game): (visible: boolean) => v
 	mountStick(move, game, learned);
 	const jump = el("div", "zone zone-jump");
 	jump.appendChild(el("span", "zone-label", "stuknij: skok"));
+	jump.appendChild(el("div", "jump-btn", "▲"));
 	holdable(jump, game, "jump", learned);
 	const actions = el("div", "actions");
 	for (const a of ACTIONS) {
-		const b = el("button", "pad-btn", a.label);
-		b.setAttribute("aria-label", a.key);
+		const b = el("button", "pad-btn", a.icon);
+		b.setAttribute("aria-label", a.name);
 		(b as HTMLButtonElement).type = "button";
 		holdable(b, game, a.key);
 		actions.appendChild(b);

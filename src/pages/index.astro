@@ -192,6 +192,25 @@ import Layout from "@/layouts/Layout.astro";
 	.zone-move.is-down .knob {
 		display: block;
 	}
+	/* Only a marker: the whole right half jumps. Shown when the stage has side strips. */
+	.jump-btn {
+		display: none;
+		position: absolute;
+		width: 4.6rem;
+		height: 4.6rem;
+		align-items: center;
+		justify-content: center;
+		border: 2px solid rgba(255, 210, 120, 0.55);
+		border-radius: 999px;
+		background: rgba(20, 16, 30, 0.55);
+		color: #ffe9a8;
+		font-size: 1.8rem;
+		pointer-events: none;
+	}
+	.zone-jump.is-down .jump-btn {
+		background: rgba(255, 180, 70, 0.75);
+		color: #1b1a22;
+	}
 	.actions {
 		position: absolute;
 		right: max(0.6rem, env(safe-area-inset-right));
@@ -389,12 +408,31 @@ import Layout from "@/layouts/Layout.astro";
 			align-items: center;
 			justify-content: center;
 			background: #000;
+			/* Each black strip beside the canvas: the notch inset plus room for the stick or the buttons. */
+			--edge: max(0.4rem, env(safe-area-inset-left), env(safe-area-inset-right));
+			--side: 7.2rem;
 		}
-		#stage #game {
-			width: min(100vw, calc(100dvh * 960 / 512));
+		#stage #game,
+		#stage.is-fullscreen #game {
+			width: min(100vw - 2 * (var(--edge) + var(--side)), calc(100dvh * 960 / 512));
 			height: auto;
 			border-radius: 0;
 			box-shadow: none;
+		}
+		.stick,
+		.knob {
+			display: block;
+			left: calc(var(--edge) + var(--side) / 2);
+			top: 60%;
+		}
+		.jump-btn {
+			display: flex;
+			right: calc(var(--edge) + (var(--side) - 4.6rem) / 2);
+			bottom: max(0.8rem, env(safe-area-inset-bottom));
+		}
+		.actions {
+			right: calc(var(--edge) + (var(--side) - 6.9rem) / 2);
+			top: 42%;
 		}
 		.menu {
 			border-radius: 0;
@@ -509,8 +547,7 @@ import Layout from "@/layouts/Layout.astro";
 			play.addEventListener("click", () => setMenu(false));
 			openMenu.addEventListener("click", () => setMenu(true));
 			floatMenu.addEventListener("click", () => setMenu(true));
-			floatFullscreen.addEventListener("click", () => fullscreen.click());
-			// Turning a phone upright hides the stage behind the rotate prompt, so pause into the menu.
+			floatFullscreen.addEventListener("click", () => fullscreen.click());			// Turning a phone upright hides the stage behind the rotate prompt, so pause into the menu.
 			const upright = window.matchMedia("(pointer: coarse) and (orientation: portrait)");
 			upright.addEventListener("change", () => {
 				if (upright.matches) setMenu(true);

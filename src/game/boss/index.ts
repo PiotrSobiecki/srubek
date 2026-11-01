@@ -118,7 +118,7 @@ export function bossPool(): [BossBody, BossAttack, BossWeakSpot][] {
 	return out;
 }
 
-/** Numbers grow gently with the level so a later boss hits harder and rests less. */
+/** Numbers grow gently with the level so a later boss hits harder and rests less; one more hp every ten levels. */
 export function makeBoss(
 	body: BossBody,
 	attack: BossAttack,
@@ -130,7 +130,7 @@ export function makeBoss(
 		body,
 		attack,
 		weakSpot,
-		hp: 3 + Math.floor(k / 20),
+		hp: 3 + Math.floor(level / 10),
 		waitFrames: Math.max(40, 90 - k),
 		openFrames: Math.max(40, 80 - k * 0.5),
 		trackSpeed: Math.min(3, 1.2 + k * 0.03),
@@ -546,9 +546,9 @@ function touch(boss: Boss, world: World, events: GameEvent[]): void {
 	damageBoss(boss, world, events);
 }
 
-/** One hit on a bared weak spot, by stomp or by thrown scrap. */
-export function damageBoss(boss: Boss, world: World, events: GameEvent[]): void {
-	boss.hp -= 1;
+/** A hit on a bared weak spot, by stomp or by thrown scrap; the mega ball counts double. */
+export function damageBoss(boss: Boss, world: World, events: GameEvent[], hits = 1): void {
+	boss.hp -= hits;
 	world.effects.push({ kind: "burst", x: boss.x + boss.w / 2, y: boss.y, frame: world.frame });
 	if (boss.hp > 0) {
 		// Stunned: the boss backs off right away.

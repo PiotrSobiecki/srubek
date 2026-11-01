@@ -658,7 +658,7 @@ function moveMegas(world: World, events: GameEvent[]): void {
 		}
 		const boss = world.boss;
 		if (boss?.alive && overlaps(box, boss.x, boss.y, boss.w, boss.h)) {
-			damageBoss(boss, world, events);
+			damageBoss(boss, world, events, 2);
 			return false;
 		}
 		return !overlapsSolid(world.level, m.x, m.y, MEGA_SIZE, MEGA_SIZE);

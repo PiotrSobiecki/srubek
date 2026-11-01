@@ -87,7 +87,9 @@ describe("the pool", () => {
 		expect(pickBoss(1, []).body).toBe("prasa");
 		const a = makeBoss("prasa", "opad", "rdzen", 1);
 		const b = makeBoss("prasa", "opad", "rdzen", 60);
-		expect(b.hp).toBeGreaterThan(a.hp);
+		expect([1, 9, 10, 19, 20, 30].map((n) => makeBoss("prasa", "opad", "rdzen", n).hp)).toEqual([
+			3, 3, 4, 4, 5, 6,
+		]);
 		expect(b.dropSpeed).toBeGreaterThan(a.dropSpeed);
 		expect(b.waitFrames).toBeLessThan(a.waitFrames);
 		expect(b.openFrames).toBeGreaterThanOrEqual(40);
@@ -219,6 +221,7 @@ describe("scrap and the mega ball against a boss", () => {
 		world.megas.push({ x: boss.x - 40, y: boss.y + 4, vx: 5 });
 		const events = run(world, 20);
 		expect(events.some((e) => e.type === "bossHit")).toBe(true);
+		expect(boss.hp).toBe(boss.spec.hp - 2);
 		expect(world.megas).toHaveLength(0);
 	});
 });

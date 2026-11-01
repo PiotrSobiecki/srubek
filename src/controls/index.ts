@@ -6,18 +6,21 @@
 
 import type { Input } from "@/game/engine";
 import type { Game } from "@/game/main";
+import { paintIcon } from "@/game/render";
 
 interface ActionButton {
 	key: keyof Input;
-	icon: string;
 	name: string;
+	/** The game's own sprite where it has one, otherwise a text glyph. */
+	sprite?: "mega" | "scrap";
+	text?: string;
 }
 
 const ACTIONS: ActionButton[] = [
-	{ key: "mega", icon: "✹", name: "Mega kula" },
-	{ key: "magnet", icon: "🧲", name: "Magnes" },
-	{ key: "throw", icon: "🔩", name: "Rzut" },
-	{ key: "attack", icon: "⚔", name: "Cios" },
+	{ key: "mega", sprite: "mega", name: "Mega kula" },
+	{ key: "magnet", text: "🧲", name: "Magnes" },
+	{ key: "throw", sprite: "scrap", name: "Rzut" },
+	{ key: "attack", text: "⚔", name: "Cios" },
 ];
 
 /** How far the thumb must slide before Śrubek moves, and where the stick stops. */
@@ -138,7 +141,13 @@ export function mountPad(host: HTMLElement, game: Game): (visible: boolean) => v
 	holdable(jump, game, "jump", learned);
 	const actions = el("div", "actions");
 	for (const a of ACTIONS) {
-		const b = el("button", "pad-btn", a.icon);
+		const b = el("button", "pad-btn", a.text);
+		if (a.sprite) {
+			const icon = document.createElement("canvas");
+			icon.width = icon.height = 96;
+			paintIcon(icon, a.sprite);
+			b.appendChild(icon);
+		}
 		b.setAttribute("aria-label", a.name);
 		(b as HTMLButtonElement).type = "button";
 		holdable(b, game, a.key);

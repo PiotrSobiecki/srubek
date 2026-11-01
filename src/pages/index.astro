@@ -227,19 +227,29 @@ import Layout from "@/layouts/Layout.astro";
 		touch-action: none;
 		user-select: none;
 		-webkit-user-select: none;
+		display: grid;
+		place-items: center;
+		padding: 0;
 		border: 2px solid rgba(255, 210, 120, 0.55);
-		border-radius: 0.6rem;
-		background: rgba(20, 16, 30, 0.55);
+		border-radius: 999px;
+		background: radial-gradient(circle at 35% 30%, #4a3f63, #1d1729 70%);
+		box-shadow: 0 3px 0 #07050b;
 		color: #ffe9a8;
 		font-family: "Bangers", "Impact", sans-serif;
 		font-size: 1.6rem;
 		letter-spacing: 0.05em;
-		backdrop-filter: blur(2px);
 		-webkit-tap-highlight-color: transparent;
+	}
+	.pad-btn canvas {
+		width: 72%;
+		height: 72%;
+		pointer-events: none;
 	}
 	.pad-btn.is-down {
 		background: rgba(255, 180, 70, 0.75);
 		color: #1b1a22;
+		box-shadow: none;
+		transform: translateY(2px);
 	}
 
 	/* Start menu over the right side of the stage; the left stays clear so Śrubek shows. */
@@ -411,27 +421,69 @@ import Layout from "@/layouts/Layout.astro";
 			/* Each black strip beside the canvas: the notch inset plus room for the stick or the buttons. */
 			--edge: max(0.4rem, env(safe-area-inset-left), env(safe-area-inset-right));
 			--side: 7.2rem;
+			--game-w: min(100vw - 2 * (var(--edge) + var(--side)), calc(100dvh * 960 / 512));
+			--strip: calc((100vw - var(--game-w)) / 2);
+			/* Middle of a strip, measured from the screen edge, past the notch. */
+			--mid: calc((var(--strip) + var(--edge)) / 2);
 		}
 		#stage #game,
 		#stage.is-fullscreen #game {
-			width: min(100vw - 2 * (var(--edge) + var(--side)), calc(100dvh * 960 / 512));
+			width: var(--game-w);
 			height: auto;
 			border-radius: 0;
 			box-shadow: none;
 		}
+		/* The strips as the two halves of a handheld console around the screen. */
+		.zone-move::before,
+		.zone-jump::before {
+			content: "";
+			position: absolute;
+			top: 0;
+			bottom: 0;
+			width: var(--strip);
+			background: linear-gradient(180deg, #2e2643, #191424 55%, #100c18);
+		}
+		.zone-move::before {
+			left: 0;
+			box-shadow:
+				inset -4px 0 0 #07050b,
+				inset -6px 0 0 rgba(255, 210, 120, 0.18);
+		}
+		.zone-jump::before {
+			right: 0;
+			box-shadow:
+				inset 4px 0 0 #07050b,
+				inset 6px 0 0 rgba(255, 210, 120, 0.18);
+		}
 		.stick,
 		.knob {
 			display: block;
-			left: calc(var(--edge) + var(--side) / 2);
+			left: var(--mid);
 			top: 60%;
+		}
+		.stick {
+			background: rgba(7, 5, 11, 0.6);
+			box-shadow: inset 0 3px 8px #000;
+		}
+		.knob {
+			border: 2px solid rgba(255, 210, 120, 0.55);
+			background: radial-gradient(circle at 35% 30%, #6a5d85, #2a2238 70%);
 		}
 		.jump-btn {
 			display: flex;
-			right: calc(var(--edge) + (var(--side) - 4.6rem) / 2);
+			right: calc(var(--mid) - 2.3rem);
 			bottom: max(0.8rem, env(safe-area-inset-bottom));
+			background: radial-gradient(circle at 35% 30%, #ffcf7a, #c76b12 75%);
+			box-shadow: 0 4px 0 #07050b;
+			color: #1b1a22;
+		}
+		.zone-jump.is-down .jump-btn {
+			background: #c76b12;
+			box-shadow: none;
+			transform: translateY(3px);
 		}
 		.actions {
-			right: calc(var(--edge) + (var(--side) - 6.9rem) / 2);
+			right: calc(var(--mid) - 3.45rem);
 			top: 42%;
 		}
 		.menu {

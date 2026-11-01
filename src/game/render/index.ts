@@ -2142,6 +2142,17 @@ function drawActors(ctx: Ctx, world: World, camera: number, skin: Skin): void {
 	drawEffects(ctx, world, camera);
 }
 
+/** A still game sprite for a touch button, centred and scaled to fill `canvas`. */
+export function paintIcon(canvas: HTMLCanvasElement, icon: "mega" | "scrap"): void {
+	const ctx = canvas.getContext("2d");
+	if (!ctx) return;
+	// Half the icon in sprite units: the mega ball's glow fades out at the edge, the scrap leaves a margin.
+	const reach = icon === "mega" ? MEGA_SIZE : 9;
+	ctx.scale(canvas.width / 2 / reach, canvas.height / 2 / reach);
+	if (icon === "mega") drawMega(ctx, reach - MEGA_SIZE / 2, reach - MEGA_SIZE / 2, 0);
+	else drawScrap(ctx, reach - 6, reach - 6, 0);
+}
+
 export type Renderer = (
 	world: World,
 	state: GameState,

@@ -547,7 +547,9 @@ import Layout from "@/layouts/Layout.astro";
 			play.addEventListener("click", () => setMenu(false));
 			openMenu.addEventListener("click", () => setMenu(true));
 			floatMenu.addEventListener("click", () => setMenu(true));
-			floatFullscreen.addEventListener("click", () => fullscreen.click());			// Turning a phone upright hides the stage behind the rotate prompt, so pause into the menu.
+			floatFullscreen.addEventListener("click", () => fullscreen.click());
+			// iPhone has no element fullscreen, and held sideways the stage already fills the window.
+			floatFullscreen.hidden = touchDevice() && !document.fullscreenEnabled;			// Turning a phone upright hides the stage behind the rotate prompt, so pause into the menu.
 			const upright = window.matchMedia("(pointer: coarse) and (orientation: portrait)");
 			upright.addEventListener("change", () => {
 				if (upright.matches) setMenu(true);

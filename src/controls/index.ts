@@ -161,8 +161,10 @@ export function lockPage(): void {
 		"touchend",
 		(e) => {
 			const now = performance.now();
-			const field = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
-			if (!field && now - lastEnd < 350) e.preventDefault();
+			// Cancelling touchend also cancels the click, so fields and buttons outside the pad keep theirs.
+			const clickable =
+				e.target instanceof Element && e.target.closest("input, select, button:not(.pad-btn)");
+			if (!clickable && now - lastEnd < 350) e.preventDefault();
 			lastEnd = now;
 		},
 		{ passive: false },

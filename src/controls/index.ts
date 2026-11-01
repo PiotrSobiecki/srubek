@@ -145,8 +145,8 @@ export function mountPad(host: HTMLElement, game: Game): (visible: boolean) => v
 	};
 }
 
-/** Stops the page zooming under fast taps and pinches on phones; form fields stay usable. */
-export function preventPageZoom(): void {
+/** Holds the page still on phones: no zoom under fast taps or pinches, no scroll or bounce under a thumb. */
+export function lockPage(): void {
 	const stop = (e: Event): void => e.preventDefault();
 	for (const type of ["gesturestart", "gesturechange", "gestureend", "dblclick"]) {
 		document.addEventListener(type, stop, { passive: false });
@@ -162,10 +162,13 @@ export function preventPageZoom(): void {
 		},
 		{ passive: false },
 	);
+	// touch-action alone does not stop iOS Safari sliding the page or its toolbar under one thumb.
 	document.addEventListener(
 		"touchmove",
 		(e) => {
-			if (e.touches.length > 1) e.preventDefault();
+			const scrollable =
+				e.target instanceof Element && e.target.closest(".menu-panel, #score-modal");
+			if (e.touches.length > 1 || !scrollable) e.preventDefault();
 		},
 		{ passive: false },
 	);

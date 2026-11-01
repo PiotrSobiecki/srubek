@@ -240,6 +240,7 @@ import Layout from "@/layouts/Layout.astro";
 		gap: 0.6rem;
 		padding: 1rem 1.2rem;
 		overflow-y: auto;
+		overscroll-behavior: contain;
 	}
 	@media (max-width: 640px) {
 		.menu {
@@ -427,7 +428,7 @@ import Layout from "@/layouts/Layout.astro";
 
 <script>
 	import { mountBoard } from "@/board";
-	import { mountFullscreen, mountMouse, mountPad, preventPageZoom, touchDevice } from "@/controls";
+	import { lockPage, mountFullscreen, mountMouse, mountPad, touchDevice } from "@/controls";
 	import { type Game, start } from "@/game/main";
 	import { mountKeys } from "@/keys";
 	import { mountWardrobe } from "@/wardrobe";
@@ -486,7 +487,7 @@ import Layout from "@/layouts/Layout.astro";
 		let game: Game | undefined;
 		const board = mountBoard({ modal, form, nick, note }, (rows) => game?.setBoard(rows));
 		mountFullscreen(stage, fullscreen);
-		if (touchDevice()) preventPageZoom();
+		if (touchDevice()) lockPage();
 		// The canvas draws its own text, so the font must be in before the first frame.
 		document.fonts.load("20px Bangers").finally(() => {
 			game = start(canvas, { onEnd: (state) => board.offer(state), onRestart: () => board.hide() });

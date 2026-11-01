@@ -12,8 +12,14 @@ import {
 describe("buildLevel(1)", () => {
 	const level = buildLevel(1);
 
-	it("joins the five segments of level 1", () => {
-		expect(level.segments).toEqual(["nuts", "drones", "gap", "dog", "presses"]);
+	it("joins the five segments of level 1, the middle three in a run-seeded order", () => {
+		expect(level.segments[0]).toBe("nuts");
+		expect(level.segments.at(-1)).toBe("presses");
+		expect(level.segments.slice(1, 4).sort()).toEqual(["dog", "drones", "gap"]);
+		const orders = new Set(
+			[1, 2, 3, 4, 5, 6, 7, 8].map((seed) => buildLevel(1, seed).segments.join()),
+		);
+		expect(orders.size).toBeGreaterThan(1);
 		expect(level.presses.length).toBeGreaterThanOrEqual(3);
 		expect(level.gates).toHaveLength(1);
 		expect(level.chargers.length).toBe(2);
@@ -198,12 +204,17 @@ describe("chunk generator", () => {
 		for (const count of Object.values(seen)) expect(count).toBeGreaterThan(5);
 	});
 
-	it("rotates through the three themes", () => {
-		expect([1, 2, 3, 4].map((n) => buildLevel(n).theme)).toEqual([
-			"zlomowisko",
-			"stocznia",
-			"fabryka",
-			"zlomowisko",
-		]);
+	it("gives each run its own layout and look, and one seed always the same level", () => {
+		expect(buildLevel(5, 42)).toEqual(buildLevel(5, 42));
+		const runs = [1, 2, 3, 4, 5, 6, 7, 8].map((seed) => buildLevel(5, seed));
+		expect(new Set(runs.map((l) => l.rows.join())).size).toBeGreaterThan(4);
+		expect(new Set(runs.map((l) => l.theme)).size).toBe(3);
+		expect(new Set(runs.map((l) => l.hue)).size).toBeGreaterThan(4);
+		for (const l of runs) {
+			expect(l.sky).toBeGreaterThanOrEqual(0);
+			expect(l.sky).toBeLessThan(1);
+		}
+		// Difficulty stays tied to the level number, whatever the seed.
+		expect(new Set(runs.map((l) => l.tempo)).size).toBe(1);
 	});
 });

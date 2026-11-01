@@ -142,16 +142,16 @@ export function makeBoss(
 
 /**
  * The boss for a level: level 1 is always the giant press; later levels take a
- * seeded pick from the pool, skipping anything this run has already beaten
- * until the whole pool has been seen.
+ * pick seeded by the level and the run, skipping anything this run has already
+ * beaten until the whole pool has been seen.
  */
-export function pickBoss(level: number, seen: readonly string[]): BossSpec {
+export function pickBoss(level: number, seen: readonly string[], seed = 0): BossSpec {
 	if (level === 1) return makeBoss("prasa", "opad", "rdzen", 1);
 	const pool = bossPool();
 	const fresh = pool.filter(([b, a, w]) => !seen.includes(bossKey(b, a, w)));
 	const choices = fresh.length > 0 ? fresh : pool;
 	const idx =
-		Math.floor(((Math.sin(level * 9301 + 49297) + 1) / 2) * choices.length) % choices.length;
+		Math.floor(((Math.sin(level * 9301 + 49297 + seed) + 1) / 2) * choices.length) % choices.length;
 	const [body, attack, weakSpot] = choices[idx] ?? pool[0] ?? ["prasa", "opad", "rdzen"];
 	return makeBoss(body, attack, weakSpot, level);
 }

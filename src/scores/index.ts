@@ -13,6 +13,8 @@ const ScoreInput = z.object({
 	nick: z.string().trim().min(1).max(NICK_MAX),
 	points: z.number().int().min(0),
 	level: z.number().int().min(1).max(1000),
+	// Clients from before per-run levels send none; their levels were seed 0.
+	seed: z.number().int().min(0).max(0xffffffff).default(0),
 });
 
 export type ScoreInput = z.infer<typeof ScoreInput>;
@@ -48,7 +50,7 @@ export interface ScoreDb {
 export function parseScore(body: unknown): ScoreInput {
 	const parsed = ScoreInput.safeParse(body);
 	if (!parsed.success) throw new ScoreError(400, "ksywka 1–16 znaków, punkty i poziom liczbami");
-	if (parsed.data.points > maxScore(parsed.data.level)) {
+	if (parsed.data.points > maxScore(parsed.data.level, parsed.data.seed)) {
 		throw new ScoreError(422, "tyle punktów nie da się zdobyć do tego poziomu");
 	}
 	return parsed.data;

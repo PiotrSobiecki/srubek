@@ -25,16 +25,17 @@ const PICKUP_POINTS = {
 } as const;
 
 /** Everything one level and its boss can pay out. */
-function levelMax(n: number): number {
-	const level = buildLevel(n);
+function levelMax(n: number, seed: number): number {
+	const level = buildLevel(n, seed);
 	const pickups = level.pickups.reduce((sum, p) => sum + PICKUP_POINTS[p.kind], 0);
 	const enemies = level.drones.length * DRONE_POINTS + level.dogs.length * DOG_POINTS;
 	const boss = (pickBoss(n, []).hp - 1) * BOSS_HIT_POINTS + BOSS_POINTS;
 	return pickups + enemies + boss;
 }
 
-export function maxScore(level: number): number {
+/** `seed` is the run's: its levels are what the player could collect from. */
+export function maxScore(level: number, seed = 0): number {
 	let total = 0;
-	for (let n = 1; n <= Math.max(1, level); n++) total += levelMax(n);
+	for (let n = 1; n <= Math.max(1, level); n++) total += levelMax(n, seed);
 	return total;
 }

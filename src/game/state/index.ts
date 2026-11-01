@@ -31,12 +31,14 @@ export interface GameState {
 	/** Bolts gathered toward the next mega ball. */
 	bolts: number;
 	megaBalls: number;
+	/** Picks this run's level layouts, looks and bosses. */
+	seed: number;
 	/** `boss` means the gate was reached and the arena is on. */
 	/** `cleared` is the pause after a beaten boss; Enter moves on. */
 	status: "playing" | "boss" | "cleared" | "over";
 }
 
-export function createState(): GameState {
+export function createState(seed = 0): GameState {
 	return {
 		points: 0,
 		levelPoints: 0,
@@ -47,6 +49,7 @@ export function createState(): GameState {
 		bossesSeen: [],
 		bolts: 0,
 		megaBalls: 0,
+		seed,
 		status: "playing",
 	};
 }

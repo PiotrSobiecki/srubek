@@ -37,6 +37,11 @@ const KEYS: Record<string, keyof Input> = {
 	ArrowDown: "throw",
 };
 
+/** Every run gets its own seed, so its levels, looks and bosses differ from the last run's. */
+function newSeed(): number {
+	return crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
+}
+
 export interface Hooks {
 	/** The run just ended, won or lost; the page may ask for a nick. */
 	onEnd?(state: GameState): void;
@@ -76,8 +81,9 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 	const query = new URLSearchParams(location.search);
 	const startLevel = Math.max(1, Math.floor(Number(query.get("level")) || 1));
 	const startTile = Number(query.get("x"));
+	let state: GameState = { ...createState(newSeed()), level: startLevel };
 	const freshLevel = (n: number): Level => {
-		const built = buildLevel(n);
+		const built = buildLevel(n, state.seed);
 		if (n === startLevel && Number.isFinite(startTile) && startTile > 0) {
 			built.spawn = { ...built.spawn, x: startTile };
 		}
@@ -85,7 +91,6 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 	};
 	let level = freshLevel(startLevel);
 	let world: World = createWorld(level);
-	let state: GameState = { ...createState(), level: startLevel };
 	const render = createRenderer(canvas);
 	const audio = createAudio(((startLevel - 1) % 3) + 1);
 	const onShortcut = (code: string): void => {
@@ -98,9 +103,9 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 			state = next;
 		}
 		if (code === "Enter" && state.status === "over") {
+			state = createState(newSeed());
 			level = freshLevel(1);
 			world = createWorld(level);
-			state = createState();
 			audio.setTrack(1);
 			hooks.onRestart?.();
 		}
@@ -129,9 +134,14 @@ export function start(canvas: HTMLCanvasElement, hooks: Hooks = {}): Game {
 	const bossFor = (n: number, seen: readonly string[]) =>
 		forced && forced.length === 3
 			? makeBoss(forced[0] as BossBody, forced[1] as BossAttack, forced[2] as BossWeakSpot, n)
-			: pickBoss(n, seen);
+			: pickBoss(n, seen, state.seed);
+	// The arena wears the look of the level that led to it.
 	const enterArena = (n: number, seen: readonly string[]): World =>
-		createWorld(arena, createBoss(bossFor(n, seen), arena.widthTiles), carriedScrap(world));
+		createWorld(
+			{ ...arena, theme: level.theme, sky: level.sky, hue: level.hue },
+			createBoss(bossFor(n, seen), arena.widthTiles),
+			carriedScrap(world),
+		);
 
 	/** Picks the world a new state calls for: the arena after the gate, a fresh one after a lost life. */
 	const worldFor = (prev: GameState, next: GameState): World => {

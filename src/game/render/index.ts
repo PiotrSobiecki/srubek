@@ -200,16 +200,19 @@ interface SkyPalette {
 	moonY: number;
 }
 
-const SKIES: Record<Theme, SkyPalette> = {
-	zlomowisko: {
-		stops: ["#0e0c24", "#35204a", "#b84e33", "#f2a640"],
-		clouds: "rgba(120,70,160,A)",
-		cloudAlpha: 0.25,
-		stars: 160,
-		moon: ["#fff6cf", "#d9b35a"],
-		moonY: 48,
-	},
-	stocznia: {
+const JUNKYARD_SKY: SkyPalette = {
+	stops: ["#0e0c24", "#35204a", "#b84e33", "#f2a640"],
+	clouds: "rgba(120,70,160,A)",
+	cloudAlpha: 0.25,
+	stars: 160,
+	moon: ["#fff6cf", "#d9b35a"],
+	moonY: 48,
+};
+
+/** Any level may get any sky; the first three were made for the three skylines. */
+const SKIES: readonly SkyPalette[] = [
+	JUNKYARD_SKY,
+	{
 		stops: ["#03060f", "#0b1836", "#1d3766", "#4d74a8"],
 		clouds: "rgba(70,110,190,A)",
 		cloudAlpha: 0.22,
@@ -217,7 +220,7 @@ const SKIES: Record<Theme, SkyPalette> = {
 		moon: ["#f4f8ff", "#9fb4d6"],
 		moonY: 40,
 	},
-	fabryka: {
+	{
 		stops: ["#1c130d", "#3d2618", "#86431c", "#e08a2e"],
 		clouds: "rgba(80,62,52,A)",
 		cloudAlpha: 0.45,
@@ -225,7 +228,52 @@ const SKIES: Record<Theme, SkyPalette> = {
 		moon: ["#ffe2a0", "#e0782a"],
 		moonY: 120,
 	},
-};
+	// Dawn: violet into pink.
+	{
+		stops: ["#1a1f3a", "#4a3a6a", "#d46a8a", "#ffc48a"],
+		clouds: "rgba(230,130,170,A)",
+		cloudAlpha: 0.3,
+		stars: 50,
+		moon: ["#fff4f0", "#e0a0b0"],
+		moonY: 96,
+	},
+	// Toxic haze over a chemical works.
+	{
+		stops: ["#06120c", "#12301e", "#3f7a3a", "#b8d860"],
+		clouds: "rgba(120,180,80,A)",
+		cloudAlpha: 0.35,
+		stars: 70,
+		moon: ["#f4ffd0", "#a8c860"],
+		moonY: 56,
+	},
+	// Polar night with an aurora glow.
+	{
+		stops: ["#020812", "#0a2a3a", "#1d6a6a", "#7fd8b0"],
+		clouds: "rgba(90,230,180,A)",
+		cloudAlpha: 0.3,
+		stars: 220,
+		moon: ["#f0fff8", "#90c8c0"],
+		moonY: 36,
+	},
+	// Storm: grey murk, hardly a star.
+	{
+		stops: ["#0d0f14", "#262a33", "#4a5160", "#8a93a0"],
+		clouds: "rgba(60,64,76,A)",
+		cloudAlpha: 0.55,
+		stars: 12,
+		moon: ["#e8ecf0", "#8a94a0"],
+		moonY: 70,
+	},
+	// Blood-red sunset.
+	{
+		stops: ["#12040a", "#3a0c1a", "#8a1e2a", "#e0603a"],
+		clouds: "rgba(160,40,50,A)",
+		cloudAlpha: 0.3,
+		stars: 90,
+		moon: ["#ffe0d0", "#d06048"],
+		moonY: 60,
+	},
+];
 
 function bakeSky(p: SkyPalette): HTMLCanvasElement {
 	const [c, ctx] = layerCanvas(VIEW_W, VIEW_H);
@@ -498,10 +546,38 @@ function bakeFactory(
 	return c;
 }
 
-function bakeBackdrop(theme: Theme): Backdrop {
+/** A copy of a baked layer turned `hue` degrees on the colour wheel. */
+function hueShift(src: HTMLCanvasElement, hue: number): HTMLCanvasElement {
+	if (hue === 0) return src;
+	const c = document.createElement("canvas");
+	c.width = src.width;
+	c.height = src.height;
+	const ctx = c.getContext("2d");
+	if (!ctx) return src;
+	ctx.filter = `hue-rotate(${hue}deg)`;
+	ctx.drawImage(src, 0, 0);
+	return c;
+}
+
+function skyFor(level: Level): SkyPalette {
+	return SKIES[Math.floor(level.sky * SKIES.length)] ?? JUNKYARD_SKY;
+}
+
+/** The level's sky over its skyline, the skyline's colours turned by the level's hue. */
+function bakeBackdrop(level: Level): Backdrop {
+	const b = bakeSkyline(level.theme);
+	return {
+		...b,
+		sky: bakeSky(skyFor(level)),
+		far: hueShift(b.far, level.hue),
+		mid: hueShift(b.mid, level.hue),
+		sea: b.sea && hueShift(b.sea, level.hue),
+	};
+}
+
+function bakeSkyline(theme: Theme): Omit<Backdrop, "sky"> {
 	if (theme === "fabryka") {
 		return {
-			sky: bakeSky(SKIES.fabryka),
 			far: bakeFactory(400, 140, "#4a3428", "#24170f", false),
 			mid: bakeFactory(300, 120, "#3d2a20", "#1a100a", true),
 			smoky: true,
@@ -509,14 +585,12 @@ function bakeBackdrop(theme: Theme): Backdrop {
 	}
 	if (theme === "stocznia") {
 		return {
-			sky: bakeSky(SKIES.stocznia),
 			far: bakeShipyard(420, 150, "#3a3458", "#1e1a34", false),
 			mid: bakeShipyard(360, 110, "#4a3a4a", "#261c2c", true),
 			sea: bakeSea(),
 		};
 	}
 	return {
-		sky: bakeSky(SKIES.zlomowisko),
 		far: bakeLayer(340, 160, "#4d2b58", "#2b1a38", 11, false),
 		mid: bakeLayer(280, 118, "#5f3238", "#33202a", 17, true),
 	};
@@ -2081,14 +2155,12 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 	canvas.height = VIEW_H * SCALE;
 	const ctx = canvas.getContext("2d");
 	if (!ctx) return () => {};
-	const backdrops = new Map<Theme, Backdrop>();
-	const backdropFor = (theme: Theme): Backdrop => {
-		let b = backdrops.get(theme);
-		if (!b) {
-			b = bakeBackdrop(theme);
-			backdrops.set(theme, b);
-		}
-		return b;
+	// Only the current look stays baked: a backdrop is several screen-sized canvases.
+	let baked: { key: string; backdrop: Backdrop } | undefined;
+	const backdropFor = (level: Level): Backdrop => {
+		const key = `${level.theme}/${skyFor(level).stops.join()}/${level.hue}`;
+		if (baked?.key !== key) baked = { key, backdrop: bakeBackdrop(level) };
+		return baked.backdrop;
 	};
 	const textures = loadTextures();
 	return (world, state, board, skin, fps) => {
@@ -2098,7 +2170,7 @@ export function createRenderer(canvas: HTMLCanvasElement): Renderer {
 		const sx = shake ? (noise(world.frame, 1, 97) - 0.5) * shake : 0;
 		const sy = shake ? (noise(world.frame, 2, 97) - 0.5) * shake : 0;
 		ctx.setTransform(SCALE, 0, 0, SCALE, sx * SCALE, sy * SCALE);
-		drawBackground(ctx, backdropFor(world.level.theme), camera, world.frame);
+		drawBackground(ctx, backdropFor(world.level), camera, world.frame);
 		drawTiles(ctx, textures, world.level, camera);
 		drawActors(ctx, world, camera, skin);
 		// Vignette, so the edges fall off like a lit set.

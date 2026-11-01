@@ -58,7 +58,12 @@ export interface Level {
 	segments: SegmentName[];
 	/** Press cycle multiplier: 1 at the start, shorter as levels harden. */
 	tempo: number;
+	/** Skyline, decor and ground family. */
 	theme: Theme;
+	/** 0..1 pick of the sky palette. */
+	sky: number;
+	/** Degrees the skyline's colours are turned on the colour wheel. */
+	hue: number;
 }
 
 const SEGMENTS: Record<HandMade, string[]> = {
@@ -266,6 +271,8 @@ export function levelFromRows(rows: string[], segments: SegmentName[] = []): Lev
 		segments,
 		tempo: 1,
 		theme: "zlomowisko",
+		sky: 0,
+		hue: 0,
 	};
 }
 
@@ -351,36 +358,36 @@ function harden(name: HandMade, d: number): string[] {
 	return rows;
 }
 
+function shuffle<T>(items: T[], next: () => number): void {
+	for (let i = items.length - 1; i > 0; i--) {
+		const j = Math.floor(next() * (i + 1));
+		const a = items[i];
+		const b = items[j];
+		if (a !== undefined && b !== undefined) {
+			items[i] = b;
+			items[j] = a;
+		}
+	}
+}
+
 /**
- * Levels past the first draw two of the six open hand-made segments and two
- * generated strips, shuffled and each possibly mirrored; the presses and the
- * gate stay last.
+ * Level 1 opens on the nuts, then the drones, the gap and the dog in a
+ * run-seeded order, never mirrored so scrap still lies before the dog. Later
+ * levels draw two of the six open hand-made segments and two generated strips,
+ * shuffled and each possibly mirrored. The presses and the gate stay last.
  */
-function segmentOrder(n: number): { names: SegmentName[]; mirrored: boolean[] } {
-	const teach: HandMade[] = ["nuts", "drones", "gap", "dog"];
-	if (n === 1)
-		return { names: [...teach, "presses"], mirrored: teach.map(() => false).concat(false) };
-	const pool: HandMade[] = [...teach, "towers", "bridge"];
-	const next = rng(n * 7919);
-	for (let i = pool.length - 1; i > 0; i--) {
-		const j = Math.floor(next() * (i + 1));
-		const a = pool[i];
-		const b = pool[j];
-		if (a !== undefined && b !== undefined) {
-			pool[i] = b;
-			pool[j] = a;
-		}
+function segmentOrder(n: number, seed: number): { names: SegmentName[]; mirrored: boolean[] } {
+	const teach: HandMade[] = ["drones", "gap", "dog"];
+	const next = rng(n * 7919 + seed);
+	if (n === 1) {
+		shuffle(teach, next);
+		const names: SegmentName[] = ["nuts", ...teach, "presses"];
+		return { names, mirrored: names.map(() => false) };
 	}
+	const pool: HandMade[] = ["nuts", ...teach, "towers", "bridge"];
+	shuffle(pool, next);
 	const open: SegmentName[] = [...pool.slice(0, 2), "losowy", "losowy"];
-	for (let i = open.length - 1; i > 0; i--) {
-		const j = Math.floor(next() * (i + 1));
-		const a = open[i];
-		const b = open[j];
-		if (a !== undefined && b !== undefined) {
-			open[i] = b;
-			open[j] = a;
-		}
-	}
+	shuffle(open, next);
 	const names: SegmentName[] = [...open, "presses"];
 	const mirrored = names.map((name) => name !== "presses" && next() < 0.5);
 	return { names, mirrored };
@@ -401,19 +408,25 @@ function mirror(rows: string[]): string[] {
 	return rows.map((row) => [...row].reverse().join(""));
 }
 
-/** Roughly one level in seven carries an extra life, decided by the level number alone. */
-export function hasExtraLife(n: number): boolean {
-	return n > 1 && rng(n * 104729)() < 0.15;
+/** Roughly one level in seven carries an extra life, decided by the level number and run seed. */
+export function hasExtraLife(n: number, seed = 0): boolean {
+	return n > 1 && rng(n * 104729 + seed)() < 0.15;
 }
 
-export function buildLevel(n: number): Level {
+/**
+ * Level n of the run started with `seed`: the layout and look change from run
+ * to run, the difficulty depends on n alone. One seed always gives the same
+ * level, so the score check on the server can rebuild it.
+ */
+export function buildLevel(n: number, seed = 0): Level {
 	const d = difficulty(n);
-	const { names, mirrored } = segmentOrder(n);
+	const { names, mirrored } = segmentOrder(n, seed);
 	const parts = names.map((name, i) => {
-		const rows = name === "losowy" ? proceduralSegment(n * 1009 + i * 97, d) : harden(name, d);
+		const rows =
+			name === "losowy" ? proceduralSegment(n * 1009 + i * 97 + seed, d) : harden(name, d);
 		return mirrored[i] ? mirror(rows) : rows;
 	});
-	if (hasExtraLife(n)) {
+	if (hasExtraLife(n, seed)) {
 		const first = parts[0];
 		if (first) placeLife(first);
 	}
@@ -422,6 +435,9 @@ export function buildLevel(n: number): Level {
 	// Every run starts at the left edge, whatever segment landed there.
 	if (n > 1) level.spawn = { x: 1, y: 12 };
 	level.tempo = 1 - 0.45 * d;
-	level.theme = THEMES[(n - 1) % THEMES.length] ?? "zlomowisko";
+	const look = rng(n * 6151 + seed);
+	level.theme = THEMES[Math.floor(look() * THEMES.length)] ?? "zlomowisko";
+	level.sky = look();
+	level.hue = Math.floor(look() * 360);
 	return level;
 }

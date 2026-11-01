@@ -44,7 +44,12 @@ export function mountBoard(el: BoardElements, onRows: (rows: BoardRow[]) => void
 	el.form.addEventListener("submit", async (e) => {
 		e.preventDefault();
 		if (!pending) return;
-		const body = { nick: el.nick.value, points: totalPoints(pending), level: pending.level };
+		const body = {
+			nick: el.nick.value,
+			points: totalPoints(pending),
+			level: pending.level,
+			seed: pending.seed,
+		};
 		el.note.textContent = "Zapisuję…";
 		const res = await fetch("/api/scores", {
 			method: "POST",

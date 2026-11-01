@@ -138,8 +138,8 @@ describe("battery and lives", () => {
 		expect(applyEvents(s, [{ type: "pickup", kind: "nut" }])).toEqual(s);
 	});
 
-	it("restarts from the initial state", () => {
-		expect(createState()).toEqual({
+	it("restarts from the initial state, carrying the new run's seed", () => {
+		expect(createState(7)).toEqual({
 			points: 0,
 			levelPoints: 0,
 			battery: BATTERY_MAX,
@@ -149,6 +149,7 @@ describe("battery and lives", () => {
 			bossesSeen: [],
 			bolts: 0,
 			megaBalls: 0,
+			seed: 7,
 			status: "playing",
 		});
 	});

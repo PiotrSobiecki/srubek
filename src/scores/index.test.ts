@@ -47,7 +47,17 @@ describe("parseScore", () => {
 			nick: "Ola",
 			points: 120,
 			level: 1,
+			seed: 0,
 		});
+	});
+
+	it("checks the run's own levels: a seed's maximum passes only with that seed", () => {
+		const seed = [...Array(30).keys()].find((s) => maxScore(3, s + 1) > maxScore(3, 0));
+		expect(seed).toBeDefined();
+		const run = (seed ?? 0) + 1;
+		const points = maxScore(3, run);
+		expect(parseScore({ nick: "Ola", points, level: 3, seed: run }).points).toBe(points);
+		expect(() => parseScore({ nick: "Ola", points, level: 3 })).toThrow(ScoreError);
 	});
 
 	it.each([
@@ -81,8 +91,8 @@ describe("parseScore", () => {
 describe("board", () => {
 	it("stores a score and lists the best first", async () => {
 		const db = fakeDb();
-		await saveScore(db, { nick: "Ola", points: 50, level: 1 });
-		await saveScore(db, { nick: "Jaś", points: 120, level: 1 });
+		await saveScore(db, { nick: "Ola", points: 50, level: 1, seed: 0 });
+		await saveScore(db, { nick: "Jaś", points: 120, level: 1, seed: 0 });
 		const board = await listScores(db);
 		expect(board.map((r) => r.nick)).toEqual(["Jaś", "Ola"]);
 	});
